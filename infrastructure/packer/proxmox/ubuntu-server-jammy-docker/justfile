@@ -1,0 +1,10 @@
+# https://github.com/casey/just
+
+init:
+  packer init ubuntu-server-jammy-docker.pkr.hcl
+
+validate:
+  packer validate -var-file='vars/variables.pkr.hcl' ubuntu-server-jammy-docker.pkr.hcl
+
+build:
+  packer build -var-file='vars/variables.pkr.hcl' ubuntu-server-jammy-docker.pkr.hcl

@@ -1,0 +1,53 @@
+- name: install packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+  with_items:
+    - ca-certificates
+    - curl
+  when: ansible_distribution == "Ubuntu"
+
+- name: keyrings
+  ansible.builtin.shell: sudo install -m 0755 -d /etc/apt/keyrings
+
+- name: download docker keys
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0444'
+
+- name: add docker repository to apt
+  ansible.builtin.shell: echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+
+- name: install docker packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+  with_items:
+    - docker-ce 
+    - docker-ce-cli 
+    - containerd.io 
+    - docker-buildx-plugin 
+    - docker-compose-plugin
+  when: ansible_distribution == "Ubuntu"
+
+- name: install cgroup packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+  with_items:
+    - cgroup-lite 
+    - cgroup-tools 
+    - cgroupfs-mount 
+    - libcgroup1
+  when: ansible_distribution == "Ubuntu"
+
+- name: Add docker user
+  user:
+    name: "docker"
+    group: "docker"
+    shell: /bin/bash
+    home: "/home/docker"
+    create_home: yes
+    state: present

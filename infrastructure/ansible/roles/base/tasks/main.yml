@@ -1,0 +1,42 @@
+---
+- name: Add local user
+  user:
+    name: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    password: "{{ admin_password_hashed }}"
+    shell: /bin/bash
+    home: "/home/{{ admin_user }}"
+    create_home: yes
+    state: present
+
+- name: sudo without password for admin group
+  copy:
+    content: "%{{ admin_group }} ALL=(ALL:ALL) NOPASSWD:ALL"
+    dest: /etc/sudoers.d/admin_nopasswd
+    mode: 0440
+
+- name: Add SSH public key for user
+  authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_ssh_public_key }}"
+    state: present
+
+- name: install "ufw" package
+  become: true
+  ansible.builtin.apt:
+    name: ufw
+  when: ansible_distribution == "Ubuntu"
+
+- ufw:
+    rule: allow
+    name: OpenSSH
+
+# ufw supports connection rate limiting, which is useful for protecting
+# against brute-force login attacks. ufw will deny connections if an IP
+# address has attempted to initiate 6 or more connections in the last
+# 30 seconds. See  http://www.debian-administration.org/articles/187
+# for details. Typical usage is:
+- ufw:
+    rule: limit
+    port: ssh
+    proto: tcp
