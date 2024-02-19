@@ -1,0 +1,6 @@
+bind9/cache
+bind9/config/local.zone
+bind9/config/zones.conf
+bind9/records
+unbound/config/unbound.log
+unbound/config/var/

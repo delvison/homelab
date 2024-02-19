@@ -1,0 +1,45 @@
+# info: deploys bind9 + unbound. unbound is used for DNS over TLS.
+---
+version: '3'
+networks:
+  dns:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.20.5.0/24"
+services:
+    bind9:
+      networks:
+        dns:
+          ipv4_address: "172.20.5.3"
+      container_name: bind9
+      image: ubuntu/bind9:latest
+      environment:
+        - BIND9_USER=root
+        - TZ=America/New_York
+      ports:
+        - '${BIND9_PORT:-53}:53/tcp'
+        - '${BIND9_PORT:-53}:53/udp'
+      volumes:
+        - ${BASE_DIR:-.}/bind9/config:/etc/bind
+        - ${BASE_DIR:-.}/bind9/cache:/var/cache/bind
+        - ${BASE_DIR:-.}/bind9/records:/var/lib/bind
+      restart: always
+      depends_on:
+        unbound:
+          condition: service_started
+
+    unbound:
+      networks:
+        dns:
+          ipv4_address: "172.20.5.2"
+      container_name: unbound
+      image: mvance/unbound:latest
+      environment:
+        - TZ=America/New_York
+      ports:
+        - '${UNBOUND_PORT:-853}:53/tcp'
+        - '${UNBOUND_PORT:-853}:53/udp'
+      volumes:
+        - ${BASE_DIR:-.}/unbound/config/unbound.conf:/opt/unbound/etc/unbound/unbound.conf
+      restart: always
