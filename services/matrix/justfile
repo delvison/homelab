@@ -1,0 +1,11 @@
+generate:
+  # https://github.com/matrix-org/synapse/tree/develop/docker#generating-a-configuration-file
+  echo "Please run the following..."
+  echo "docker run -it --rm -v $(pwd)/synapse/data:/data -e SYNAPSE_SERVER_NAME=my.matrix.host -e SYNAPSE_REPORT_STATS=no matrixdotorg/synapse:latest generate"
+
+deploy:
+  docker context create matrix --docker "host=ssh://matrix" || true
+  docker context use matrix
+  rsync -av -e ssh --exclude='db/' --exclude='homeserver.db' ./synapse matrix:/opt/
+  ssh matrix chown -R 1000:100 /opt/synapse/
+  BASE_DIR=/opt docker compose up -d --force-recreate
