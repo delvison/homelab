@@ -1,0 +1,5 @@
+deploy:
+  docker context create self-hosted --docker "host=ssh://self-hosted-server" || true
+  docker context use self-hosted
+  docker network create self-hosted || true
+  BASE_DIR=/opt docker compose up -d --force-recreate
