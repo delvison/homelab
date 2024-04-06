@@ -4,7 +4,7 @@ networks:
   synapse:
 services:
   matrix-nginx:
-    image: nginx:1.16.0-alpine
+    image: nginx@sha256:270bea203d2fc3743fb9ce0193325e188b7e6233043487e3d3cf117ea4d3f337
     container_name: matrix-nginx
     restart: unless-stopped
     ports:
@@ -43,7 +43,7 @@ services:
       - matrix-synapse
 
   matrix-synapse:
-    image: matrixdotorg/synapse:latest
+    image: matrixdotorg/synapse@sha256:dce2c712f36c9f714ad2895c0773286620d96374d8143a52f148271e07eb9509
     container_name: matrix-synapse
     restart: unless-stopped
     environment:
@@ -68,7 +68,7 @@ services:
       - matrix-synapse-db
 
   matrix-synapse-db:
-    image: docker.io/postgres:15-alpine
+    image: docker.io/postgres@sha256:96c1413ba7871a0f3480034a41aca641f0ad1f724eb50f5d8ed668a51b9b22ad
     container_name: matrix-synapse-db
     restart: unless-stopped
     environment:
@@ -85,7 +85,7 @@ services:
        synapse:
 
   matrix-postfix:
-    image: boky/postfix
+    image: boky/postfix@sha256:4b7e77349a09779b7fea281db2f113e66da69cdc362fbfb55fbc8c5716952d16
     container_name: matrix-postfix
     restart: unless-stopped
     environment:

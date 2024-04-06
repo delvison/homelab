@@ -1,0 +1,5 @@
+deploy:
+  docker context use matrix
+  rsync -av -e ssh ./mautrix-signal matrix:/opt/
+  ssh matrix chown -R 1000:100 /opt/mautrix-signal/
+  BASE_DIR=/opt docker compose up -d --force-recreate
