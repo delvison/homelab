@@ -1,0 +1,46 @@
+---
+version: '3.8'
+
+services:
+  letsencrypt-cloudflare:
+    image: certbot/dns-cloudflare
+    user: 0:1000
+    volumes:
+      - ${BASE_DIR:-.}/letsencrypt:/etc/letsencrypt
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /opt/cloudflare
+        cat <<EOF > /opt/cloudflare/credentials 
+        dns_cloudflare_api_token = "${CF_API_KEY}"
+        EOF
+        chmod 0600 /opt/cloudflare/credentials
+        certbot certonly --email "${CF_API_EMAIL}" --non-interactive --dns-cloudflare --dns-cloudflare-credentials /opt/cloudflare/credentials --agree-tos -d "*.local.${DOMAIN}" --server https://acme-v02.api.letsencrypt.org/directory --expand
+
+  nginx:
+    image: nginx:1.16.0-alpine
+    restart: always
+    user: 0:1000
+    ports:
+      - "443:443"
+    volumes:
+      - ${BASE_DIR:-.}/letsencrypt:/etc/ssl
+      - ${BASE_DIR:-.}/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ${BASE_DIR:-.}/nginx/templates:/etc/nginx/templates
+    environment:
+      DOMAIN: "${DOMAIN}"
+      HOST1: "${HOST1}"
+      HOST2: "${HOST2}"
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/nginx/snippets
+        cp /etc/nginx/templates/proxy-headers.conf /etc/nginx/snippets/proxy-headers.conf
+        envsubst < /etc/nginx/templates/ssl-params.conf.template > /etc/nginx/snippets/ssl-params.conf
+        envsubst < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
+        nginx -g "daemon off;"
+    depends_on:
+      letsencrypt-cloudflare:
+        condition: service_completed_successfully

@@ -1,0 +1,10 @@
+set dotenv-load
+
+alias d := deploy
+
+deploy:
+  docker context create nginx --docker "host=ssh://nginx" || true
+  docker context use nginx
+  rsync -av -e ssh ./nginx nginx:$BASE_DIR/
+  rsync -av -e ssh ./letsencrypt nginx:$BASE_DIR/
+  docker compose up -d --force-recreate
