@@ -1,0 +1,4 @@
+deploy:
+  docker context create roon --docker "host=ssh://roon" || true
+  docker context use roon
+  BASE_DIR=/opt docker compose up -d --force-recreate
