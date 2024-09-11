@@ -40,7 +40,7 @@
     - cgroup-lite 
     - cgroup-tools 
     - cgroupfs-mount 
-    - libcgroup1
+    # - libcgroup1
   when: ansible_distribution == "Ubuntu"
 
 - name: Add docker user
@@ -50,4 +50,11 @@
     shell: /bin/bash
     home: "/home/docker"
     create_home: yes
+    state: present
+
+
+- name: Add SSH public key for docker user
+  authorized_key:
+    user: "docker"
+    key: "{{ admin_ssh_public_key }}"
     state: present

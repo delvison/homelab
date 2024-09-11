@@ -1,0 +1,9 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    user: "${UID:-1002}:${GID:-988}"
+    volumes:
+      - ${BASE_DIR:-.}/uptime-kuma/data:/app/data
+    ports:
+      - 3001:3001
+    restart: unless-stopped

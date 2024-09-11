@@ -1,4 +1,9 @@
 ---
+- name: add group
+  ansible.builtin.group:
+    name: "{{ admin_group }}"
+    state: present
+
 - name: Add local user
   user:
     name: "{{ admin_user }}"

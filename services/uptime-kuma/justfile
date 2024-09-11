@@ -1,0 +1,4 @@
+deploy:
+  docker context create server3 --docker "host=ssh://server3-docker" || true
+  docker context use server3
+  BASE_DIR=/home/docker/services docker compose up -d --force-recreate
