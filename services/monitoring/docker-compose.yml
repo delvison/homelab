@@ -1,0 +1,126 @@
+networks:
+  monitoring:
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib
+    container_name: otel-collector
+    restart: always
+    volumes:
+      - ${BASE_DIR:-.}/otelcol/config.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - 1888:1888 # pprof extension
+      - 8888:8888 # Prometheus metrics exposed by the Collector
+      - 8889:8889 # Prometheus exporter metrics
+      - 13133:13133 # health_check extension
+      - 4317:4317 # OTLP gRPC receiver
+      - 4318:4318 # OTLP http receiver
+      - 55679:55679 # zpages extension
+    networks:
+      - monitoring
+
+  influxdb:
+    image: influxdb:2.0
+    container_name: influxdb
+    restart: unless-stopped
+    volumes:
+      - ${BASE_DIR:-.}/influxdb/data:/var/lib/influxdb2
+      - ${BASE_DIR:-.}/influxdb/config:/etc/influxdb2
+    ports:
+      - '8086:8086'
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: "${DOCKER_INFLUXDB_INIT_USERNAME}"
+      DOCKER_INFLUXDB_INIT_PASSWORD: "${DOCKER_INFLUXDB_INIT_PASSWORD}"
+      DOCKER_INFLUXDB_INIT_ORG: "${DOCKER_INFLUXDB_INIT_ORG}"
+      DOCKER_INFLUXDB_INIT_BUCKET: "${DOCKER_INFLUXDB_INIT_BUCKET}"
+    networks:
+      - monitoring
+    healthcheck:
+        test: "curl -f http://localhost:8086/ping"
+        interval: 5s
+        timeout: 10s
+        start_period: 30s
+        retries: 5
+
+  grafana:
+    image: grafana/grafana-enterprise
+    user: 1002:0
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ${BASE_DIR:-.}/grafana/data:/var/lib/grafana
+    ports:
+      - '3000:3000'
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_DOMAIN="grafana.local.${DOMAIN}"
+        #- GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    networks:
+      - monitoring
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthz || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  telegraf:
+    image: docker.io/telegraf:latest
+    restart: always
+    container_name: telegraf
+    environment:
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+      EUID: 1000
+    hostname: ${HOST}
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock:ro
+     - /sys:/rootfs/sys:ro
+     - /proc:/rootfs/proc:ro
+     - /etc:/rootfs/etc:ro
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat <<EOF > ./etc/telegraf/telegraf.conf
+        [global_tags]
+        [agent]
+          interval = "60s"
+          round_interval = true
+          metric_batch_size = 1000
+          metric_buffer_limit = 10000
+          collection_jitter = "0s"
+          flush_interval = "10s"
+          flush_jitter = "0s"
+          precision = "0s"
+          hostname = ""
+          omit_hostname = false
+
+        [[inputs.kernel]]
+        [[inputs.system]]
+        [[inputs.processes]]
+        [[inputs.diskio]]
+        [[inputs.cpu]]
+        [[inputs.mem]]
+        [[inputs.disk]]
+          ignore_fs = ["tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs"]
+        [[inputs.nstat]]
+        [[inputs.temp]]
+        [[inputs.net]]
+        [[inputs.opentelemetry]]
+          service_address = "0.0.0.0:4317"
+        #[[outputs.file]]
+          #files = ["stdout"]
+        [[outputs.influxdb_v2]]
+          urls = ["http://influxdb:8086"]
+          token = "${INFLUXDB_TOKEN}"
+          organization = "self-hosted"
+          bucket = "homelab"
+        EOF
+        /entrypoint.sh telegraf
+    networks:
+      - monitoring
+    depends_on:
+      - influxdb
