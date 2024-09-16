@@ -56,6 +56,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_DOMAIN="grafana.local.${DOMAIN}"
         #- GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      # - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_admin_password
     networks:
       - monitoring
     healthcheck:
@@ -64,6 +65,8 @@ services:
       retries: 5
       start_period: 30s
       timeout: 10s
+    secrets:
+      - admin_password
 
   telegraf:
     image: docker.io/telegraf:latest
@@ -124,3 +127,7 @@ services:
       - monitoring
     depends_on:
       - influxdb
+
+secrets:
+  admin_password:
+    environment: GRAFANA_ADMIN_PASSWORD
