@@ -1,11 +1,14 @@
+set dotenv-load
+
+deploy_host := "$HOST"
+
 unbound-log:
+  docker context use dns1
   docker exec -it unbound tail -f /opt/unbound/etc/unbound/unbound.log
 
-# deploy via docker to virtual machine called "dns1". entry for "dns1" should
-# be created in ~/.ssh/config
 deploy:
-  docker context create dns1 --docker "host=ssh://dns1" || true
+  docker context create dns1 --docker "host=ssh://{{deploy_host}}" || true
   docker context use dns1
-  scp -r bind9 dns1:/opt
-  scp -r unbound dns1:/opt
-  BASE_DIR=/opt docker compose up -d --force-recreate
+  scp -r bind9 {{deploy_host}}:$BASE_DIR
+  scp -r unbound {{deploy_host}}:$BASE_DIR
+  BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
