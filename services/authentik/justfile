@@ -1,0 +1,14 @@
+set dotenv-load
+
+deploy_host := "$HOST-docker"
+
+deploy:
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+  docker compose up -d --force-recreate
+  docker compose ps
+
+connect:
+  @echo "Establishing SSH tunnel..."
+  ssh -fNL $COMPOSE_PORT_HTTP:localhost:$COMPOSE_PORT_HTTP $HOST
+  xdg-open http://localhost:$COMPOSE_PORT_HTTP
