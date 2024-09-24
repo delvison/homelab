@@ -1,0 +1,11 @@
+services:
+  btc-rpc-explorer:
+    container_name: btc-rpc-explorer
+    image: btc-rpc-explorer
+    ports:
+      - 3002:3002
+    restart: unless-stopped
+    # volumes:
+    #   - ${BASE_DIR:-.}/.env:/root/.config/btc-rpc-explorer.env
+    env_file:
+      - .env

@@ -1,0 +1,63 @@
+--- 
+services:
+  caddy:
+    container_name: caddy
+    build:
+      context: .
+      dockerfile: caddy.dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      CF_API_EMAIL: "${CF_API_EMAIL}"
+      CF_API_KEY: "${CF_API_KEY}"
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat <<EOF > /etc/caddy/Caddyfile
+        {
+          email "${CF_API_EMAIL}"
+        }
+        *.local.${DOMAIN} {
+          tls {
+              issuer acme {
+                  dns cloudflare ${CF_API_KEY}
+                  resolvers 1.1.1.1 1.0.0.1
+              }
+          }
+          @nas host nas.local.${DOMAIN}
+          handle @nas {
+            reverse_proxy 192.168.1.205:8080
+          }
+
+          @audiobookshelf host audiobookshelf.local.${DOMAIN}
+          handle @audiobookshelf {
+            reverse_proxy 192.168.1.224:2008
+          }
+
+          @proxmox host proxmox.local.${DOMAIN}
+          handle @proxmox {
+            reverse_proxy 192.168.1.2:8006
+          }
+
+          @jellyfin host jellyfin.local.${DOMAIN}
+          handle @jellyfin {
+            reverse_proxy 192.168.1.205:8096
+          }
+
+          @test host test.local.${DOMAIN}
+          handle @test {
+            respond "hello world"
+          }
+        }
+        EOF
+        caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+ 
+volumes:
+  caddy_data:
+  caddy_config:

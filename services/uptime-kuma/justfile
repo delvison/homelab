@@ -1,4 +1,11 @@
-deploy:
-  docker context create server3 --docker "host=ssh://server3-docker" || true
-  docker context use server3
+set dotenv-load
+
+deploy_host := "$HOST-docker"
+
+set-context:
+  @echo "(+) Setting Docker context..."
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+
+deploy: set-context
   BASE_DIR=/home/docker/services docker compose up -d --force-recreate

@@ -1,7 +1,8 @@
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:1
-    user: "${UID:-1002}:${GID:-988}"
+    # https://hub.docker.com/r/louislam/uptime-kuma/tags
+    image: louislam/uptime-kuma:1-alpine
+    # user: "${UID:-1002}:${GID:-988}"
     volumes:
       - ${BASE_DIR:-.}/uptime-kuma/data:/app/data
     ports:
