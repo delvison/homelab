@@ -1,5 +1,11 @@
-deploy:
-  docker context create self-hosted --docker "host=ssh://self-hosted-server" || true
-  docker context use self-hosted
-  docker network create self-hosted || true
+set dotenv-load
+
+deploy_host := "$HOST-docker"
+
+set-context:
+  @echo "(+) Setting Docker context..."
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+
+deploy: set-context
   BASE_DIR=/opt docker compose up -d --force-recreate
