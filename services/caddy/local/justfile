@@ -12,3 +12,6 @@ connect:
   @echo "Establishing SSH tunnel..."
   ssh -fNL 443:localhost:443 $HOST
   xdg-open https://localhost
+
+test:
+  bats test

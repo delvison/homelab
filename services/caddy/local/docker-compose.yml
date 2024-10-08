@@ -22,6 +22,7 @@ services:
         cat <<EOF > /etc/caddy/Caddyfile
         {
           email "${CF_API_EMAIL}"
+          cache
         }
         *.local.${DOMAIN} {
           tls {
@@ -32,22 +33,63 @@ services:
           }
           @nas host nas.local.${DOMAIN}
           handle @nas {
-            reverse_proxy 192.168.1.205:8080
+            cache
+            reverse_proxy ${NAS}:8080
           }
 
           @audiobookshelf host audiobookshelf.local.${DOMAIN}
           handle @audiobookshelf {
-            reverse_proxy 192.168.1.224:2008
+            cache
+            reverse_proxy ${SERVER}:2008
           }
 
           @proxmox host proxmox.local.${DOMAIN}
           handle @proxmox {
+            cache
             reverse_proxy 192.168.1.2:8006
           }
 
           @jellyfin host jellyfin.local.${DOMAIN}
           handle @jellyfin {
-            reverse_proxy 192.168.1.205:8096
+            cache
+            reverse_proxy ${NAS}:8096
+          }
+
+          @portainer-nas host portainer-nas.local.${DOMAIN}
+          handle @portainer-nas {
+            cache
+            reverse_proxy https://${NAS}:19943 {
+              transport http {
+                tls
+                tls_insecure_skip_verify
+              }
+            }
+          }
+
+          @uptime-kuma host uptime-kuma.local.${DOMAIN}
+          handle @uptime-kuma {
+            cache
+            reverse_proxy ${SERVER3}:3001
+          }
+
+          @btcexplorer host btcexplorer.local.${DOMAIN}
+          handle @btcexplorer {
+            cache
+            reverse_proxy ${SERVER3}:3002
+          }
+
+          @cryptpad host cryptpad.local.${DOMAIN}
+          handle @cryptpad {
+            cache
+            reverse_proxy ${SERVER3}:3128
+          }
+
+          @authentik host authentik.local.${DOMAIN}
+          handle @authentik {
+            cache
+            reverse_proxy ${SERVER3}:9000 {
+              header_up Host {http.reverse_proxy.upstream.hostport}
+            }
           }
 
           @test host test.local.${DOMAIN}
