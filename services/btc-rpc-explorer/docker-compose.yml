@@ -9,3 +9,23 @@ services:
     #   - ${BASE_DIR:-.}/.env:/root/.config/btc-rpc-explorer.env
     env_file:
       - .env
+
+  tor:
+    container_name: btc-rpc-tor
+    image: btcpayserver/tor:0.4.8.10
+    restart: unless-stopped
+    volumes:
+      - tor-vol:/home/tor/.tor/
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat <<EOF > /usr/local/etc/tor/.torrc
+        ## Hidden Services
+        HiddenServiceDir /home/tor/.tor/btc-rpc-explorer
+        HiddenServicePort 80 btc-rpc-explorer:3002
+        EOF
+        /entrypoint.sh tor -f /usr/local/etc/tor/.torrc
+
+volumes:
+  tor-vol:

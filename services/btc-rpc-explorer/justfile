@@ -7,21 +7,17 @@ set-context:
   @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
   @docker context use {{deploy_host}}
 
-push-files:
-  @echo "(+) pushing files"
-  #@scp .env {{deploy_host}}:$BASE_DIR/.env
-
 build: set-context
   @echo "(+) Building Docker image..."
-  git clone --depth 1 https://github.com/janoside/btc-rpc-explorer.git
-  cd btc-rpc-explorer && docker build -t btc-rpc-explorer .
+  @git clone --quiet --depth 1 https://github.com/janoside/btc-rpc-explorer.git
+  @cd btc-rpc-explorer && docker build -t btc-rpc-explorer .
+  @rm -rf btc-rpc-explorer
+  @docker images | grep btc-rpc-explorer
 
-deploy: set-context push-files
+deploy: set-context
   @echo "(+) Deploying..."
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
   docker compose ps
 
-connect:
-  @echo "Establishing SSH tunnel..."
-  ssh -fNL $COMPOSE_PORT_HTTP:localhost:$COMPOSE_PORT_HTTP $HOST
-  xdg-open http://localhost:$COMPOSE_PORT_HTTP
+get-hostname:
+  @docker exec -it btc-rpc-tor cat /home/tor/.tor/btc-rpc-explorer/hostname
