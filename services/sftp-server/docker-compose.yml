@@ -1,0 +1,32 @@
+services:
+  sftp:
+    # https://hub.docker.com/r/emberstack/sftp
+    image: "emberstack/sftp:5.1.71"
+    restart: always
+    ports:
+      - "2233:22"
+    volumes:
+      - ${SFTP_SHARE_DIR:-./sftp/upload}:/home/bot/sftp
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat <<EOF > /app/config/sftp.json
+        {
+          "Global": {
+              "Chroot": {
+                  "Directory": "%h",
+                  "StartPath": "sftp"
+              },
+              "Directories": ["sftp"]
+          },
+          "Users": [
+              {
+                  "Username": "bot",
+                  "Password": "${SSH_PASSWORD}",
+                  "PublicKeys": ["${SSH_PUB_KEY}"]
+              }
+          ]
+        }
+        EOF
+        tini -- dotnet ES.SFTP.dll
