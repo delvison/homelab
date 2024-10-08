@@ -26,11 +26,17 @@
     key: "{{ admin_ssh_public_key }}"
     state: present
 
+- name: install "rsyslog" package
+  become: true
+  ansible.builtin.apt:
+    name: rsyslog
+  when: ansible_distribution == "Debian"
+
 - name: install "ufw" package
   become: true
   ansible.builtin.apt:
     name: ufw
-  when: ansible_distribution == "Ubuntu"
+  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
 
 - ufw:
     rule: allow
@@ -45,3 +51,49 @@
     rule: limit
     port: ssh
     proto: tcp
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install fail2ban
+  yum:
+    name: fail2ban
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Configure SSH jail
+  lineinfile:
+    path: /etc/fail2ban/jail.conf
+    regexp: "^[# ]*ssh"
+    line: "[ssh]
+    port = ssh
+    filter = ssh
+    logpath = /var/log/auth.log
+    maxretry = 3
+    bantime = 600"
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Configure SSH jail
+  lineinfile:
+    path: /etc/fail2ban/jail.d/sshd.conf
+    regexp: "^# "
+    line: "port = ssh
+           filter = sshd
+           logpath = /var/log/secure
+           maxretry = 3
+           bantime = 600"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Restart fail2ban service
+  systemd:
+    name: fail2ban
+    state: restarted
