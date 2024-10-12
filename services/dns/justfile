@@ -12,3 +12,6 @@ deploy:
   scp -r bind9 {{deploy_host}}:$BASE_DIR
   scp -r unbound {{deploy_host}}:$BASE_DIR
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
+
+test:
+  bats test

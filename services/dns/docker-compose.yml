@@ -1,6 +1,5 @@
 # info: deploys bind9 + unbound. unbound is used for DNS over TLS.
 ---
-version: '3'
 networks:
   dns:
     ipam:
