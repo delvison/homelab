@@ -4,6 +4,7 @@ services:
   uptime-kuma:
     # https://hub.docker.com/r/louislam/uptime-kuma/tags
     image: louislam/uptime-kuma:1-alpine
+    container_name: uptime-kuma
     build:
       context: .
     volumes:
