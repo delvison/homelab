@@ -1,10 +1,42 @@
+networks:
+  uptime-kuma:
 services:
   uptime-kuma:
     # https://hub.docker.com/r/louislam/uptime-kuma/tags
     image: louislam/uptime-kuma:1-alpine
-    # user: "${UID:-1002}:${GID:-988}"
+    build:
+      context: .
     volumes:
       - ${BASE_DIR:-.}/uptime-kuma/data:/app/data
-    ports:
-      - 3001:3001
+    # ports:
+    #   - 3001:3001
     restart: unless-stopped
+    environment:
+      - UPTIME_KUMA_PORT=80
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    network_mode: service:ts-uptime-kuma
+
+  ts-uptime-kuma:
+    container_name: ts-uptime-kuma
+    image: tailscale/tailscale:stable
+    hostname: uptime-kuma
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_EXTRA_ARGS=--login-server=https://${TS_DOMAIN}
+      - TS_NO_LOGS_NO_SUPPORT=true
+      - TS_AUTHKEY=${TS_AUTHKEY} 
+    volumes:
+      - ts-uptime-kuma-vol:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    networks:
+      - uptime-kuma
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  ts-uptime-kuma-vol:
