@@ -1,0 +1,19 @@
+---
+services:
+  maloja:
+    image: krateng/maloja
+    container_name: maloja
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - MALOJA_DATA_DIRECTORY=/mljdata
+      - MALOJA_LASTFM_API_KEY=${MALOJA_LASTFM_API_KEY}
+      - MALOJA_LASTFM_API_SECRET=${MALOJA_LASTFM_API_SECRET}
+      - MALOJA_PROXY_IMAGES=true
+    volumes:
+      - "${BASE_DIR:-.}/maloja:/mljdata"
+    ports:
+      - 42010:42010
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"

@@ -9,6 +9,8 @@ services:
       - LASTFM_SECRET=${LASTFM_SECRET}
       - LZ_TOKEN=${LZ_TOKEN}
       - LZ_USER=${LZ_USER}
+      - MALOJA_URL=${MALOJA_URL}
+      - MALOJA_API_KEY=${MALOJA_API_KEY}
       - PUID=${UID}
       - PGID=${GID}
       - BASE_URL=${BASE_URL}
@@ -17,3 +19,5 @@ services:
     ports:
       - 9078:9078 
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
