@@ -24,3 +24,23 @@
     - docker_hosts
   tags:
     - docker
+
+- hosts: tailscale
+  vars_files:
+    - "./vars/vault.yml"
+  become: true
+  roles:
+    - tailscale
+  tags:
+    - tailscale
+
+- name: Install Caddy
+  hosts: caddy
+  vars:
+    caddy_deb_url: "https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.deb"
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - caddy
+  tags:
+    - caddy

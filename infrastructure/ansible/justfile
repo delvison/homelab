@@ -1,2 +1,8 @@
+run-all:
+  ansible-playbook -i inventory.ini site.yaml
+
 run-docker:
   ansible-playbook -i inventory.ini site.yaml --tags=docker
+
+run-tailscale:
+  ansible-playbook -i inventory.ini site.yaml --tags=tailscale

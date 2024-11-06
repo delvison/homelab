@@ -7,6 +7,10 @@ services:
     restart: always
     volumes:
       - ${BASE_DIR:-.}/otelcol/config.yaml:/etc/otelcol-contrib/config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
     ports:
       - 1888:1888 # pprof extension
       - 8888:8888 # Prometheus metrics exposed by the Collector
@@ -17,6 +21,8 @@ services:
       - 55679:55679 # zpages extension
     networks:
       - monitoring
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"
 
   influxdb:
     image: influxdb:2.0
@@ -25,6 +31,10 @@ services:
     volumes:
       - ${BASE_DIR:-.}/influxdb/data:/var/lib/influxdb2
       - ${BASE_DIR:-.}/influxdb/config:/etc/influxdb2
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
     ports:
       - '8086:8086'
     environment:
@@ -49,6 +59,10 @@ services:
     restart: unless-stopped
     volumes:
       - ${BASE_DIR:-.}/grafana/data:/var/lib/grafana
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
     ports:
       - '3000:3000'
     environment:
@@ -67,6 +81,8 @@ services:
       timeout: 10s
     secrets:
       - admin_password
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"
 
   telegraf:
     image: docker.io/telegraf:latest
@@ -83,6 +99,10 @@ services:
      - /sys:/rootfs/sys:ro
      - /proc:/rootfs/proc:ro
      - /etc:/rootfs/etc:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
     entrypoint:
       - sh
       - -euc
@@ -98,7 +118,7 @@ services:
           flush_interval = "10s"
           flush_jitter = "0s"
           precision = "0s"
-          hostname = ""
+          hostname = "${HOST}"
           omit_hostname = false
 
         [[inputs.kernel]]
@@ -127,6 +147,8 @@ services:
       - monitoring
     depends_on:
       - influxdb
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"
 
 secrets:
   admin_password:

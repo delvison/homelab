@@ -20,7 +20,7 @@ exporters:
     tls:
       insecure: true
   debug:
-    verbosity: detailed
+    # verbosity: detailed
 service:
   pipelines:
     metrics:

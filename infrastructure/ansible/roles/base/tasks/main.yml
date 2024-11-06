@@ -1,4 +1,12 @@
 ---
+- name: install sudo
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+  with_items:
+    - sudo
+  when: ansible_distribution == "Debian"
+
 - name: add group
   ansible.builtin.group:
     name: "{{ admin_group }}"

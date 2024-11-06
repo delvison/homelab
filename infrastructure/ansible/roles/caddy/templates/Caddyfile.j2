@@ -1,0 +1,103 @@
+{
+	servers {
+		metrics
+	}
+}
+
+http://localhost:22067 {
+	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22067
+	
+}
+
+localhost:22026 {
+	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22026 {
+		transport http {
+			tls
+			tls_insecure_skip_verify
+		}	
+	}
+}
+
+:22070 {
+	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22070
+}
+
+*.{{ caddy_domain }} {
+	log {
+		output file /var/log/caddy/{{ caddy_domain }}.access.log {
+			roll_keep 5
+		}
+		format json
+	}
+
+	@proxy host http://proxy.{{ caddy_domain }}
+	handle @proxy {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:22067
+	}
+
+	@cp host cp.{{ caddy_domain }}
+	handle @cp {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:3128
+	}
+
+	@cryptpad host cryptpad.{{ caddy_domain }}
+	handle @cryptpad {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:3128
+	}
+
+	@trilium host trilium.{{ caddy_domain }}
+	handle @trilium {
+		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:8180
+	}
+
+	@joplin host joplin.{{ caddy_domain }}
+	handle @joplin {
+		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:22300
+	}
+
+	@paste host paste.{{ caddy_domain }}
+	handle @paste {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:10500
+	}
+
+	@rss host rss.{{ caddy_domain }}
+	handle @rss {
+		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:9111
+	}
+
+	@audiobookshelf host audiobookshelf.{{ caddy_domain }}
+	handle @audiobookshelf {
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:2008
+	}
+
+	@gitea host gitea.{{ caddy_domain }}
+	handle @gitea {
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:2000
+	}
+
+	@nc host nc.{{ caddy_domain }}
+	handle @nc {
+		reverse_proxy https://{{ server1 }}.{{ caddy_domain }}:186 {
+			transport http {
+				tls
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	@music host music.{{ caddy_domain }}
+	handle @music {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:4553
+	}
+
+	@authentik host authentik.{{ caddy_domain }}
+	handle @authentik {
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:9000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	handle {
+		abort
+	}
+}

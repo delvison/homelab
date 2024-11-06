@@ -1,0 +1,29 @@
+- name: Download Caddy deb file
+  get_url:
+    url: "{{ caddy_deb_url }}"
+    dest: /tmp/caddy_2.8.4_linux_amd64.deb
+  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+- name: Install Caddy deb file
+  apt:
+    deb: /tmp/caddy_2.8.4_linux_amd64.deb
+  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+- name: Create Caddyfile
+  template:
+    src: templates/Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+
+- name: Restart caddy service
+  systemd:
+    name: caddy
+    state: restarted
+
+- name: Validate caddy
+  uri:
+    url: http://127.0.0.1:2019/metrics
+    method: GET
+    status_code: 200
+    timeout: 10
+  register: metric_response
+  until: metric_response.status == 200

@@ -7,6 +7,14 @@
     - curl
   when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
 
+- name: install sudo
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+  with_items:
+    - sudo
+  when: ansible_distribution == "Debian"
+
 - name: Create the /etc/apt/keyrings directory
   file:
     path: /etc/apt/keyrings
