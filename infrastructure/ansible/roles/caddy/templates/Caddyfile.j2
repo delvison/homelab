@@ -6,7 +6,6 @@
 
 http://localhost:22067 {
 	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22067
-	
 }
 
 localhost:22026 {
@@ -21,6 +20,7 @@ localhost:22026 {
 :22070 {
 	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22070
 }
+
 
 *.{{ caddy_domain }} {
 	log {

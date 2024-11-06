@@ -1,0 +1,13 @@
+- name: Restart caddy
+  systemd:
+    name: caddy
+    state: restarted
+
+- name: Validate caddy
+  uri:
+    url: http://127.0.0.1:2019/metrics
+    method: GET
+    status_code: 200
+    timeout: 10
+  register: metric_response
+  until: metric_response.status == 200
