@@ -30,24 +30,13 @@ localhost:22026 {
 		format json
 	}
 
+	tls { 
+		dns cloudflare {{ cloudflare_api_token }}
+	}
+
 	@proxy host http://proxy.{{ caddy_domain }}
 	handle @proxy {
 		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:22067
-	}
-
-	@cp host cp.{{ caddy_domain }}
-	handle @cp {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:3128
-	}
-
-	@cryptpad host cryptpad.{{ caddy_domain }}
-	handle @cryptpad {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:3128
-	}
-
-	@trilium host trilium.{{ caddy_domain }}
-	handle @trilium {
-		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:8180
 	}
 
 	@joplin host joplin.{{ caddy_domain }}
@@ -74,15 +63,15 @@ localhost:22026 {
 	handle @gitea {
 		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:2000
 	}
+	
+	@mempool host mempool.{{ caddy_domain }}
+	handle @mempool {
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:8050
+	}
 
 	@nc host nc.{{ caddy_domain }}
 	handle @nc {
-		reverse_proxy https://{{ server1 }}.{{ caddy_domain }}:186 {
-			transport http {
-				tls
-				tls_insecure_skip_verify
-			}
-		}
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:18600
 	}
 
 	@music host music.{{ caddy_domain }}

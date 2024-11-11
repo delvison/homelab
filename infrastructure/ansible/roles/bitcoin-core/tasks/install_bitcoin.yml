@@ -1,0 +1,113 @@
+- name: download bitcoin-core {{ version }}
+  get_url:
+    url: https://bitcoin.org/bin/bitcoin-core-{{ version }}/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    dest: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+  tags:
+    - bitcoin-core
+
+- name: download bitcoin-core via tor
+  command: torsocks curl -s -L -o /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz https://bitcoin.org/bin/bitcoin-core-{{ version }}/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+  args:
+    creates: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+  tags:
+    - bitcoin-core
+
+- name: download sha256sums via tor
+  command: torsocks curl -s -L -o /tmp/SHA256SUMS https://bitcoin.org/bin/bitcoin-core-{{ version }}/SHA256SUMS
+  args:
+    creates: /tmp/SHA256SUMS
+  tags:
+    - bitcoin-core
+
+- name: download signatures via tor
+  command: torsocks curl -s -L -o /tmp/SHA256SUMS.asc https://bitcoin.org/bin/bitcoin-core-{{ version }}/SHA256SUMS.asc
+  args:
+    creates: /tmp/SHA256SUMS.asc
+  tags:
+    - bitcoin-core
+
+- name: verify sha256sum
+  command: sha256sum --check --ignore-missing /tmp/SHA256SUMS
+  args:
+    chdir: /tmp
+  register: package_checksum
+  tags:
+    - bitcoin-core
+
+- name: assert sha256sum contains "OK"
+  assert:
+    that: package_checksum.stdout.find('OK') != -1
+    msg: "Package checksum verification failed. Please verify the package checksum manually."
+  tags:
+    - bitcoin-core
+
+- name: git clone github.com/bitcoin-core/guix.sigs.git
+  become: yes
+  become_user: bitcoin
+  git:
+    repo: https://github.com/bitcoin-core/guix.sigs.git
+    dest: /opt/bitcoin/guix-sigs
+    depth: 1
+    force: true
+  tags:
+    - bitcoin-core
+
+- name: Find all dev builder keys
+  become: yes
+  become_user: bitcoin
+  find:
+    paths: /opt/bitcoin/guix-sigs/builder-keys
+    file_type: file
+  register: pgp_files
+  tags:
+    - bitcoin-core
+
+- name: gpg import dev builder keys
+  become: yes
+  become_user: bitcoin
+  command: gpg --import {{ item.path }}
+  loop: "{{ pgp_files.files }}"
+  tags:
+    - bitcoin-core
+
+- name: extract bitcoin-core {{ version }}
+  unarchive:
+    src: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    dest: /opt/bitcoin
+    owner: bitcoin
+    group: bitcoin
+    remote_src: true
+  tags:
+    - bitcoin-core
+
+- name: check bitccoin-core {{ version }} signatures
+  become: yes
+  become_user: bitcoin
+  command: gpg --verify /tmp/SHA256SUMS.asc
+  args:
+    chdir: /tmp
+  notify: 
+    - cleanup bitcoin files
+  tags:
+    - bitcoin-core
+
+- name: create bitcoin.conf
+  template:
+    src: bitcoin.conf.j2
+    dest: /opt/bitcoin/data/bitcoin.conf
+    owner: bitcoin
+    group: bitcoin
+    mode: '0644'
+  tags:
+    - bitcoin-core
+
+- name: create systemd unit file
+  template:
+    src: bitcoin.service.j2
+    dest: /etc/systemd/system/bitcoin.service
+    mode: '0644'
+  notify: 
+    - reload systemd
+    - restart bitcoin
+  tags:
+    - bitcoin-core

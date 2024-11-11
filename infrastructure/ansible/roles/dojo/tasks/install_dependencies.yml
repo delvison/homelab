@@ -1,0 +1,55 @@
+- name: Install required packages
+  become: yes
+  apt:
+    name: [
+      'apt-transport-https',
+      'ca-certificates',
+      'curl',
+      'gnupg-agent',
+      'software-properties-common',
+      'torsocks',
+      'unzip'
+    ]
+    state: present
+  tags:
+    - dojo
+
+- name: create dojo user
+  become: true
+  user:
+    name: dojo
+    state: present
+    shell: /bin/bash
+    home: /home/dojo
+    group: docker
+    append: true
+    create_home: true
+    system: no
+  tags:
+    - dojo
+
+- name: Allow TCP connections to port {{ bitcoin_rpc_port }} from 172.28.1.1/24
+  become: yes
+  ufw:
+    rule: allow
+    direction: in
+    port: "{{ bitcoin_rpc_port }}"
+    proto: tcp
+    src: "172.28.1.1/24"
+    comment: 'Allow dojo'
+  tags:
+    - dojo
+
+- name: Allow TCP connections to port {{ dojo_indexer_port }} from 172.28.1.1/24
+  become: yes
+  ufw:
+    rule: allow
+    direction: in
+    port: "{{ dojo_indexer_port }}"
+    proto: tcp
+    src: "172.28.1.1/24"
+    comment: 'Allow dojo'
+  tags:
+    - dojo
+  notify:
+    - restart ufw

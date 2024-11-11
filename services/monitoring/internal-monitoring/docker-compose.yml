@@ -1,0 +1,58 @@
+services:
+  ntfy-server:
+    image: binwiederhier/ntfy
+    container_name: ntfy-server
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "1"
+    command: serve
+    environment:
+      TZ: America/New_York
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      NTFY_BASE_URL: ${NTFY_BASE_URL}
+    user: ${UID}:${GID}
+    volumes:
+      - ${BASE_DIR:-.}/ntfy/cache:/var/cache/ntfy
+      - ${BASE_DIR:-.}/ntfy/ntfy:/var/lib/ntfy
+    ports:
+      - 12500:80
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  gatus-internal:
+    image: twinproduction/gatus
+    container_name: gatus-internal
+    user: ${UID}:${GID}
+    ports:
+      - 8076:8080
+    volumes:
+      - "${BASE_DIR:-.}/gatus/config/:/config"  # can drop in more config files in the host as these files get merged
+      - "${BASE_DIR:-.}/gatus/data:/data/"
+    environment:
+      GATUS_CONFIG_PATH: "/config"
+      NTFY_URL: "${NTFY_URL}"
+      NTFY_TOKEN: "${NTFY_TOKEN}"
+      NTFY_TOPIC: "${NTFY_TOPIC}"
+      GATUS_DB_USER: "${GATUS_DB_USER}"
+      GATUS_DB_PASSWORD: "${GATUS_DB_PASSWORD}"
+    restart: always
+    depends_on:
+      - gatus-postgres-internal
+
+  gatus-postgres-internal:
+    image: postgres
+    restart: always
+    volumes:
+      - gatus-postgres-vol:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=gatus
+      - POSTGRES_USER=${GATUS_DB_USER}
+      - POSTGRES_PASSWORD=${GATUS_DB_PASSWORD}
+
+volumes:
+  gatus-postgres-vol:

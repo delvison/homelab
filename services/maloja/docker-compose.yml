@@ -3,6 +3,11 @@ services:
   maloja:
     image: krateng/maloja
     container_name: maloja
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 256M
     environment:
       - PUID=${UID}
       - PGID=${GID}

@@ -3,6 +3,11 @@ services:
   multi-scrobbler:
     image: foxxmd/multi-scrobbler
     container_name: multi-scrobbler
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
     environment:
       - TZ=${TZ} # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       - LASTFM_API_KEY=${LASTFM_API_KEY}

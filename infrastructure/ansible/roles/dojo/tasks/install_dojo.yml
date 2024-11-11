@@ -1,0 +1,118 @@
+---
+- name: Download GPG key via tor
+  become: yes
+  become_user: dojo
+  command: >
+    torsocks curl -o /home/dojo/gpg_key.gpg "http://zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad.onion/vks/v1/by-fingerprint/E53AD419B242822F19E23C6D3033D463D6E544F6"
+  args:
+    creates: /home/dojo/gpg_key.gpg
+  tags:
+    - dojo
+
+- name: gpg import keys
+  become: yes
+  become_user: dojo
+  command: gpg --import /home/dojo/gpg_key.gpg
+  tags:
+    - dojo
+
+- name: Download Samourai Dojo archive via tor
+  become: yes
+  become_user: dojo
+  command: >
+    torsocks curl -s -L -o /home/dojo/samourai-dojo-1.26.1.zip "https://github.com/Dojo-Open-Source-Project/samourai-dojo/archive/refs/tags/v1.26.1.zip"
+  args:
+    creates: /home/dojo/samourai-dojo-1.26.1.zip 
+  tags:
+    - dojo
+
+- name: download dojo fingerprints via tor
+  become: yes
+  become_user: dojo
+  command: torsocks curl -s -L -o /home/dojo/samourai-dojo-1.26.1-fingerprints.txt https://github.com/Dojo-Open-Source-Project/samourai-dojo/releases/download/v1.26.1/samourai-dojo-1.26.1-fingerprints.txt
+  args:
+    creates: /home/dojo/samourai-dojo-1.26.1-fingerprints.txt
+  tags:
+    - dojo
+
+- name: download dojo sig via tor
+  become: yes
+  become_user: dojo
+  command: torsocks curl -s -L -o /home/dojo/samourai-dojo-1.26.1-fingerprints.txt.sig https://github.com/Dojo-Open-Source-Project/samourai-dojo/releases/download/v1.26.1/samourai-dojo-1.26.1-fingerprints.txt.sig
+  args:
+    creates: /home/dojo/samourai-dojo-1.26.1-fingerprints.txt.sig
+  tags:
+    - dojo
+
+- name: check dojo signatures
+  become: yes
+  become_user: dojo
+  command: gpg --verify samourai-dojo-1.26.1-fingerprints.txt.sig
+  args:
+    chdir: /home/dojo
+  tags:
+    - dojo
+
+- name: Unzip Samourai Dojo archive
+  become: yes
+  become_user: dojo
+  unarchive:
+    src: /home/dojo/samourai-dojo-1.26.1.zip
+    dest: /home/dojo/
+    mode: '0755'
+    remote_src: yes
+  tags:
+    - dojo
+
+- name: create docker-bitcoind.conf.tpl
+  become: yes
+  become_user: dojo
+  template:
+    src: docker-bitcoind.conf.tpl.j2
+    dest: /home/dojo/samourai-dojo-1.26.1/docker/my-dojo/conf/docker-bitcoind.conf.tpl
+    owner: dojo
+    group: docker
+    mode: '0644'
+  tags:
+    - dojo
+
+- name: create docker-mysql.conf.tpl
+  become: yes
+  become_user: dojo
+  template:
+    src: docker-mysql.conf.tpl.j2
+    dest: /home/dojo/samourai-dojo-1.26.1/docker/my-dojo/conf/docker-mysql.conf.tpl
+    owner: dojo
+    group: docker
+    mode: '0644'
+  tags:
+    - dojo
+
+- name: create docker-indexer.conf.tpl
+  become: yes
+  become_user: dojo
+  template:
+    src: docker-indexer.conf.tpl.j2
+    dest: /home/dojo/samourai-dojo-1.26.1/docker/my-dojo/conf/docker-indexer.conf.tpl
+    owner: dojo
+    group: docker
+    mode: '0644'
+  tags:
+    - dojo
+
+- name: create docker-node.conf.tpl
+  become: yes
+  become_user: dojo
+  template:
+    src: docker-node.conf.tpl.j2
+    dest: /home/dojo/samourai-dojo-1.26.1/docker/my-dojo/conf/docker-node.conf.tpl
+    owner: dojo
+    group: docker
+    mode: '0644'
+  tags:
+    - dojo
+
+- name: Run dojo.sh script as user dojo
+  become: yes
+  become_user: dojo
+  command: /home/dojo/samourai-dojo-1.26.1/docker/my-dojo/dojo.sh install --auto

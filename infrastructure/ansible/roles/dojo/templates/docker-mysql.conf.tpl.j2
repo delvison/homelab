@@ -1,0 +1,23 @@
+#########################################
+# CONFIGURATION OF MYSQL CONTAINER
+#########################################
+
+# Password of MySql root account
+# Warning: This option must not be modified after the first installation
+# Type: alphanumeric
+MYSQL_ROOT_PASSWORD={{ dojo_mysql_root_password }}
+
+# User account used for db access
+# Warning: This option must not be modified after the first installation
+# Type: alphanumeric
+MYSQL_USER={{ dojo_mysql_user }}
+
+# Password of of user account
+# Warning: This option must not be modified after the first installation
+# Type: alphanumeric
+MYSQL_PASSWORD={{ dojo_mysql_password }}
+
+# MySQL configuration profile
+#   default = default configuration parameters
+#   low_mem = configuration minimizing the RAM consumed by the database
+# Values: default | low_mem

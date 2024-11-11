@@ -1,0 +1,33 @@
+# Additional security settings for Tor configuration
+ControlPort 9051
+
+# Disable exit node functionality
+#ExitNodes 0
+
+# Enable DNS resolution through Tor
+DNSPort 53
+DNSListenAddress ::1
+
+# Increase the number of open file descriptors
+#MaxOpenFileDescriptor 20000
+
+# Set a higher circuit build timeout
+#MaxCircuitBuildDelay 15
+
+# Limit bandwidth usage
+BandwidthRate 1000000
+BandwidthBurst 1500000
+
+# Enable additional logging for debugging purposes
+Log notice file /var/log/tor/notices.log
+Log debug file /var/log/tor/debug.log
+
+# Enable cookie authentication for control port
+CookieAuthentication 1
+
+# Disable IPv6 unless you specifically need it
+#DisableIPv6 1
+
+HiddenServiceDir /var/lib/tor/fulcrum/
+HiddenServiceVersion 3
+HiddenServicePort 50002 127.0.0.1:50002

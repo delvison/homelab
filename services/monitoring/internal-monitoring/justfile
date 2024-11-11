@@ -1,0 +1,14 @@
+set dotenv-load
+
+deploy_host := "$HOST-docker"
+
+set-context:
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+
+push-files:
+  @scp -r ./gatus {{deploy_host}}:$BASE_DIR/
+
+deploy: set-context push-files
+  BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
+  docker compose ps

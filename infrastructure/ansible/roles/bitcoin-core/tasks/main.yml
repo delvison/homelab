@@ -1,0 +1,40 @@
+---
+- include_tasks: install_dependencies.yml
+
+- name: add bitcoin group
+  ansible.builtin.group:
+    name: bitcoin
+    state: present
+
+- name: add bitcoin user
+  ansible.builtin.user:
+    name: bitcoin
+    group: bitcoin
+    create_home: yes
+
+- name: create bitcoin directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: bitcoin
+    group: bitcoin
+  with_items:
+    - /opt/bitcoin
+    - /opt/bitcoin/data
+    - /opt/fulcrum
+    - /opt/fulcrum/data
+    - /opt/tor
+    - /opt/tor/data
+    - /opt/tor/fulcrum
+
+- name: Create symbolic link for Bitcoin data
+  file:
+    src: /opt/bitcoin/data
+    dest: /home/bitcoin/.bitcoin
+    state: link
+    force: yes
+
+- include_tasks: wait_tor.yml
+- include_tasks: install_bitcoin.yml
+- include_tasks: configure_tor.yml
+- include_tasks: install_fulcrum.yml

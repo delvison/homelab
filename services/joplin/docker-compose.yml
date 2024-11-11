@@ -17,6 +17,11 @@
 services:
     joplin-db:
         image: postgres:16
+        deploy:
+          resources:
+            limits:
+              cpus: '0.10'
+              memory: 128M
         volumes:
             - ${BASE_DIR:-.}/joplin/data/postgres:/var/lib/postgresql/data
         # ports:
@@ -28,6 +33,11 @@ services:
             - POSTGRES_DB=${POSTGRES_DATABASE}
     joplin-server:
         image: joplin/server:latest
+        deploy:
+          resources:
+            limits:
+              cpus: '0.20'
+              memory: 512M
         depends_on:
             - joplin-db
         ports:
@@ -42,3 +52,5 @@ services:
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PORT=${POSTGRES_PORT}
             - POSTGRES_HOST=joplin-db
+        labels:
+          - com.centurylinklabs.watchtower.enable=true"

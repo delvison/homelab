@@ -1,0 +1,78 @@
+---
+networks:
+  nextcloud:
+    ipam:
+      driver: default
+      config:
+        - subnet: "10.0.1.0/24"
+
+volumes:
+  nextcloud-redis-vol:
+
+services:
+  nextcloud-db:
+    image: postgres@sha256:3bfb87432e26badf72d727a0c5f5bb7b81438cd9baec5be8531c70a42b07adc6
+    user: ${UID}:${GID}
+    restart: always
+    volumes:
+      - ${BASE_DIR:-.}/nextcloud/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${NEXTCLOUD_POSTGRES_DB}
+      - POSTGRES_USER=${NEXTCLOUD_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${NEXTCLOUD_POSTGRES_PASSWORD}
+      - POSTGRES_PORT=5431
+    healthcheck:
+      test: pg_isready -d ${NEXTCLOUD_POSTGRES_DB} -U ${NEXTCLOUD_POSTGRES_USER}
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 15s
+    networks:
+      - nextcloud
+
+  nextcloud-app:
+    image: nextcloud
+    user: ${UID}:${GID}
+    restart: always
+    ports:
+      - 18600:80
+    volumes:
+      - ${BASE_DIR:-.}/nextcloud/app:/var/www/html
+    environment:
+      - POSTGRES_HOST=nextcloud-db
+      - POSTGRES_DB=${NEXTCLOUD_POSTGRES_DB}
+      - POSTGRES_USER=${NEXTCLOUD_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${NEXTCLOUD_POSTGRES_PASSWORD}
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
+      - NEXTCLOUD_REDIS_HOST=nextcloud-redis
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
+    networks:
+      - nextcloud
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+    healthcheck:
+      test: php occ status
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  nextcloud-redis:
+    image: redis
+    restart: always
+    networks:
+      - nextcloud
+    volumes:
+      - nextcloud-redis-vol:/data
+    healthcheck:
+      test: redis-cli --raw incr ping
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 15s
+
+# docker exec --user www-data -it <container_name> php occ config:system:set trusted_domains 10 --value="domainname.com"

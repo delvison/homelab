@@ -1,0 +1,12 @@
+storage:
+  type: postgres
+  path: "postgres://${GATUS_DB_USER}:${GATUS_DB_PASSWORD}@gatus-postgres-internal:5432/gatus?sslmode=disable"
+
+endpoints:
+  - name: external-dns-query
+    url: "9.9.9.9"
+    dns:
+      query-name: "torproject.com"
+      query-type: "A"
+    conditions:
+      - "[DNS_RCODE] == NOERROR"

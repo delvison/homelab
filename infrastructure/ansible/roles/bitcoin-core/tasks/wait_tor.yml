@@ -1,0 +1,15 @@
+# TODO: make this a block with 5 retries
+- block:
+    - name: Attempt curl to TorProject
+      command: torsocks curl -s -L http://check.torproject.org/api/ip
+      register: curl_result
+      
+    - name: Verify Tor connection
+      debug:
+        var: curl_result.stdout | regex_search('true')
+      register: tor_status
+      
+    - name: Fail if Tor connection failed
+      fail:
+        msg: "Failed to connect to Tor"
+      when: tor_status.failed == true

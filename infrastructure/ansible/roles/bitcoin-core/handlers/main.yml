@@ -1,0 +1,34 @@
+- name: reload systemd
+  command: systemctl daemon-reload
+
+- name: restart bitcoin
+  systemd:
+    name: bitcoin
+    state: restarted
+
+- name: restart fulcrum
+  systemd:
+    name: fulcrum
+    state: restarted
+
+- name: restart tor
+  systemd:
+    name: tor
+    state: restarted
+
+- name: cleanup bitcoin files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    - /tmp/SHA256SUMS
+    - /tmp/SHA256SUMS.asc
+    - /opt/bitcoin/guix-sigs/
+
+- name: cleanup fulcrum files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/fulcrum

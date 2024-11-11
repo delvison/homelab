@@ -17,6 +17,13 @@
     group: caddy
     mode: 0755
 
+- name: Download Caddy server binary with cloudflare module
+  get_url:
+    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare&idempotency=40863542593994"
+    dest: /usr/bin/caddy
+    mode: '0755'
+  become: yes
+
 - name: Create Caddyfile
   template:
     src: templates/Caddyfile.j2

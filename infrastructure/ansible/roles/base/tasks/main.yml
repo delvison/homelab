@@ -12,7 +12,7 @@
     name: "{{ admin_group }}"
     state: present
 
-- name: Add local user
+- name: Add user {{ admin_user }}
   user:
     name: "{{ admin_user }}"
     group: "{{ admin_group }}"

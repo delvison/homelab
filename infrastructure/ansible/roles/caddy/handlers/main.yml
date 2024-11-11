@@ -1,4 +1,5 @@
 - name: Restart caddy
+  become: yes
   systemd:
     name: caddy
     state: restarted

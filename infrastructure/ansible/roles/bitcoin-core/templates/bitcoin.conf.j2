@@ -1,0 +1,42 @@
+# Bitcoin configuration file
+
+# Run on the Tor network
+listen=1
+bind=127.0.0.1:8333
+onlynet=onion
+
+# Enable Tor
+proxy=127.0.0.1:9050
+listen=1
+maxconnections=40
+
+# Enable full node features
+server=1
+txindex=1
+prune=0
+
+# Security settings
+rpcuser={{ bitcoin_rpc_user }}
+rpcpassword={{ bitcoin_rpc_password }}
+rpcallowip=127.0.0.1
+rpcallowip=192.168.1.0/24
+rpcallowip=172.28.1.0/24
+rpcallowip=172.23.0.0/24
+rpcport=8332
+disablewallet=1  # Disable wallet if not needed
+walletbroadcast=0
+
+# Logging
+printtoconsole=1
+debug=net
+logips=1
+
+# Miscellaneous settings
+maxuploadtarget=10000  # Limit upload bandwidth (in MB)
+dbcache=2000           # Set database cache size (in MB)
+
+# https://github.com/bitcoin/bitcoin/blob/master/doc/zmq.md
+zmqpubrawblock=tcp://127.0.0.1:28332
+zmqpubhashtx=tcp://127.0.0.1:28332
+zmqpubrawtx=tcp://127.0.0.1:28333
+#zmqpubkeyaddress=tcp://127.0.0.1:28334

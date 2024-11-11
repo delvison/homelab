@@ -1,3 +1,5 @@
+# https://github.com/casey/just
+
 run-all:
   ansible-playbook -i inventory.ini site.yaml
 
@@ -6,3 +8,12 @@ run-docker:
 
 run-tailscale:
   ansible-playbook -i inventory.ini site.yaml --tags=tailscale
+
+run-bitcoin-core:
+  ansible-playbook -i inventory.ini site.yaml --tags=bitcoin-core -K
+
+run-caddy:
+  ansible-playbook -i inventory.ini site.yaml --tags=caddy -K
+
+run-dojo:
+  ansible-playbook -i inventory.ini site.yaml --tags=dojo -K

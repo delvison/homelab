@@ -1,0 +1,24 @@
+[req]
+prompt             = no
+default_bits       = 2048
+default_keyfile    = selfsigned.key
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+x509_extensions    = v3_ca
+
+[req_distinguished_name]
+C = US
+ST = Texas
+L = Fulcrum
+O = Bitcoin
+CN = Bitcoin
+
+[req_ext]
+subjectAltName = @alt_names
+
+[v3_ca]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1   = localhost
+DNS.2   = 127.0.0.1
