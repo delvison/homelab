@@ -2,9 +2,14 @@ set dotenv-load
 
 deploy_host := "$HOST-docker"
 
-deploy:
+set-context:
   @docker context create monitoring --docker "host=ssh://{{deploy_host}}" || true
   @docker context use monitoring
-  scp -r ./otelcol {{deploy_host}}:$BASE_DIR/
+
+push-files:
+  @scp -r ./otelcol {{deploy_host}}:$BASE_DIR/
+  @scp -r ./prometheus {{deploy_host}}:$BASE_DIR/
+
+deploy: set-context push-files
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
   docker compose ps

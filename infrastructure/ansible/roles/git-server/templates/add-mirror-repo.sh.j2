@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Set the base directory
+BASE_DIR="/home/git/repositories/mirrors"
+
+# Check if we have enough arguments
+if [ $# -eq 0 ]; then
+    echo "Usage: add-mirror-repo <repo-url>"
+    exit 1
+fi
+
+cd ${BASE_DIR}
+
+if git clone "$1"; then
+    echo "$(date "+%Y-%m-%d_%H:%M:%S") : Cloned $1" >> ${BASE_DIR}/updates.log
+    echo "Repository '$1' cloned successfully."
+else
+    echo "Failed to clone repository '$1'."
+    exit 1
+fi

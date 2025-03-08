@@ -14,3 +14,6 @@ tunnel:
   @echo "opening SSH tunnel..."
   @echo "Visit http://localhost:8050"
   ssh -N -L 127.0.0.1:8050:127.0.0.1:8050 {{deploy_host}}
+
+logs:
+  docker compose logs -f

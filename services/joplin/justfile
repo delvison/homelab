@@ -2,8 +2,10 @@ set dotenv-load
 
 deploy_host := "$HOST-docker"
 
-deploy:
+set-context:
   @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
   @docker context use {{deploy_host}}
+
+deploy: set-context
   docker compose up -d --force-recreate
   docker compose ps

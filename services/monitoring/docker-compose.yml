@@ -7,22 +7,27 @@ services:
     restart: always
     volumes:
       - ${BASE_DIR:-.}/otelcol/config.yaml:/etc/otelcol-contrib/config.yaml
+      - /proc:/hostfs/proc
     logging:
       driver: json-file
       options:
         max-size: 512m
     ports:
-      - 1888:1888 # pprof extension
-      - 8888:8888 # Prometheus metrics exposed by the Collector
-      - 8889:8889 # Prometheus exporter metrics
+      # - 1888:1888 # pprof extension
+      # - 8888:8888 # Prometheus metrics exposed by the Collector
+      # - 8889:8889 # Prometheus exporter metrics
       - 13133:13133 # health_check extension
       - 4317:4317 # OTLP gRPC receiver
       - 4318:4318 # OTLP http receiver
-      - 55679:55679 # zpages extension
+      # - 55679:55679 # zpages extension
+    environment:
+      HOST: ${HOST}
     networks:
       - monitoring
+    depends_on:
+      - telegraf
     labels:
-      - com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.enable=true"
 
   influxdb:
     image: influxdb:2.0
@@ -82,7 +87,7 @@ services:
     secrets:
       - admin_password
     labels:
-      - com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.enable=true"
 
   telegraf:
     image: docker.io/telegraf:latest
@@ -148,8 +153,37 @@ services:
     depends_on:
       - influxdb
     labels:
-      - com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  prometheus:
+    image: prom/prometheus:v2.21.0
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ${BASE_DIR:-.}/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=4w'
+      - '--web.enable-lifecycle'
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
+    networks:
+      - monitoring
+    depends_on:
+      - otel-collector
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
 secrets:
   admin_password:
     environment: GRAFANA_ADMIN_PASSWORD
+
+volumes:
+  prometheus-data:

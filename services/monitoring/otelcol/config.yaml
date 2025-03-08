@@ -1,29 +1,88 @@
 extensions:
   health_check: {}
 receivers:
+  # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver
+  hostmetrics:
+    collection_interval: 30s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      memory:
+      network:
+      processes:
+  # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver
+  hostmetrics/disk:
+    collection_interval: 1m
+    root_path: /hostfs
+    scrapers:
+      disk:
+      filesystem:
   otlp:
     protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
   httpcheck:
     targets:
       - endpoint: http://grafana:3000/healthz
         method: GET
+      - endpoint: http://influxdb:8086/metrics
+        method: GET
     collection_interval: 10s
+  prometheus/self-monitoring:
+    config:
+      scrape_configs:
+        # scrape internal metrics
+        - job_name: 'otel'
+          scrape_interval: 10s
+          static_configs:
+            - targets: ['127.0.0.1:8888']
 processors:
+  attributes:
+    actions:
+      - key: host_name
+        from_attribute: host_name
+        action: upsert
+      - key: service
+        from_attribute: service.name
+        action: upsert
+      - key: service_name
+        from_attribute: service.name
+        action: upsert
+  attributes/self-monitoring:
+    actions:
+      - key: host_name
+        value: ${env:HOST}
+        action: upsert
+      - key: service_namespace
+        value: infrastructure
+        action: upsert
   batch:
+  # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/filterprocessor
+  filter/drop-prom:
+    error_mode: ignore
+    metrics:
+      metric:
+        - 'resource.attributes["source"] == "prometheus"'
 exporters:
-  otlp:
+  otlp/telegraf:
     endpoint: telegraf:4317
     tls:
       insecure: true
+  # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/prometheusexporter
+  prometheus:
+    endpoint: 0.0.0.0:8889
   debug:
-    # verbosity: detailed
+    verbosity: detailed
 service:
+  telemetry:
+    metrics:
+      address: localhost:8888
   pipelines:
     metrics:
       receivers: [otlp, httpcheck]
-      processors: [batch]
-      exporters: [debug, otlp]
+      processors: [attributes,batch]
+      exporters: [debug,otlp/telegraf,prometheus]
+    metrics/self-monitoring:
+      receivers: [prometheus/self-monitoring,hostmetrics,hostmetrics/disk]
+      processors: [attributes/self-monitoring,batch]
+      exporters: [prometheus]

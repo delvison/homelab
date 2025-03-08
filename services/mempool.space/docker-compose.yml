@@ -26,12 +26,17 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
       - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
   api:
     deploy:
       resources:
         limits:
           cpus: '0.50'
-          memory: 1024M
+          memory: 1280M
     environment:
       MEMPOOL_BACKEND: "none"
       ELECTRUM_HOST: "${ELECTRUM_HOST}"
@@ -58,6 +63,11 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
       - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
   db:
     deploy:
       resources:
@@ -71,9 +81,14 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
     image: mariadb:10.5.21
     user: "1002:${GID}"
-    restart: on-failure
+    restart: always
     stop_grace_period: 1m
     volumes:
       - ${BASE_DIR:-.}/mysql/data:/var/lib/mysql
     networks:
       - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"

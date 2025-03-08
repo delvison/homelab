@@ -27,3 +27,5 @@ services:
       - /volume1/shared/30_Media/34_Audio/roon/RoonOnNAS/:/var/roon
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"

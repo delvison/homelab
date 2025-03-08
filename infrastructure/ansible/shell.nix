@@ -7,5 +7,6 @@ pkgs.mkShell {
     pkgs.ansible
     pkgs.just
     pkgs.sops
+    pkgs.sshpass
   ];
 }

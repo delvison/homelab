@@ -12,3 +12,6 @@ push-files:
 deploy: set-context push-files
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
   docker compose ps
+
+logs:
+  docker compose logs -f

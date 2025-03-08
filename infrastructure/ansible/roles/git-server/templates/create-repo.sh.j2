@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Check if we have enough arguments
+if [ $# -eq 0 ]; then
+    echo "Usage: create-repo <repo-name>"
+    exit 1
+fi
+
+# Create a new bare repository
+if git init --bare "repositories/$1"; then
+    echo "Bare repository '$1' created successfully."
+else
+    echo "Failed to create bare repository '$1'."
+    exit 1
+fi

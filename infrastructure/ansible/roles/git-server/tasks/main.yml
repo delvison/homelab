@@ -1,0 +1,106 @@
+- name: Ensure git group exists
+  group:
+    name: git
+    state: present
+
+- name: Create git user
+  user:
+    name: git
+    groups: git
+    append: true
+    state: present
+    create_home: yes
+    # ref: https://git-scm.com/docs/git-shell
+    shell: /usr/bin/git-shell
+
+- name: Add SSH public key to git user
+  authorized_key:
+    user: git
+    key: "{{ git_ssh_key }}"
+    state: present
+
+- name: Install required packages
+  apt:
+    name:
+      - git
+      - git-annex
+      - cron
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install required packages (Fedora)
+  dnf:
+    name:
+      - git
+      - git-annex
+      - cron
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Set git user permissions
+  lineinfile:
+    path: /etc/sudoers
+    regexp: '^git'
+    line: 'git ALL=(ALL) NOPASSWD: /usr/bin/git-shell,/usr/bin/git,/usr/bin/git-annex'
+
+- name: Create .gitconfig
+  ansible.builtin.template:
+    src: templates/gitconfig.j2
+    dest: "/home/git/.gitconfig"
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Create directories
+  ansible.builtin.file:
+    path: /home/git/{{ item.path }}
+    state: directory
+    mode: '0700'
+    owner: git
+    group: git
+  loop:
+    - { path: 'git-shell-commands' }
+    - { path: 'repositories' }
+    - { path: 'repositories/mirrors' }
+
+- name: Create update-mirrors script
+  ansible.builtin.template:
+    src: templates/update-mirrors.sh.j2
+    dest: "/home/git/git-shell-commands/update-mirrors"
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Create create-repo script
+  ansible.builtin.template:
+    src: templates/create-repo.sh.j2
+    dest: "/home/git/git-shell-commands/create-repo"
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Create add-mirror-repo script
+  ansible.builtin.template:
+    src: templates/add-mirror-repo.sh.j2
+    dest: "/home/git/git-shell-commands/add-mirror-repo"
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Create symlink for git-annex-shell
+  ansible.builtin.file:
+    src: "/usr/bin/git-annex-shell"
+    dest: "/home/git/git-shell-commands/git-annex-shell"
+    state: link
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Add cron job for git user to update mirrors
+  cron:
+    name: "Update Git Mirrors"
+    minute: "0"
+    hour: "*/12"
+    user: git
+    job: "/home/git-shell-commands/update-mirrors"
+    state: present

@@ -1,0 +1,24 @@
+---
+services:
+  service:
+    image: service
+    container_name: service
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    environment:
+      - TZ=${TZ} # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    volumes:
+      - "${BASE_DIR:-.}/{{service}}"
+    ports:
+      - 0000:0000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"

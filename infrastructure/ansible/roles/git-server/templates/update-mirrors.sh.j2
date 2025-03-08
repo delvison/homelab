@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Set the base directory
+BASE_DIR="/home/git/repositories/mirrors"
+
+# Navigate to the base directory
+cd "$BASE_DIR" || exit 1
+
+update_repo() {
+    echo "Pulling changes..."
+    git fetch -a
+    git pull
+    echo "$(date "+%Y-%m-%d_%H:%M:%S"): New changes pulled for ${dir}" >> ${BASE_DIR}/updates.log
+}
+
+# Iterate through each subdirectory
+for dir in */; do
+    if [ -d "${dir}/.git" ]; then
+        echo "Checking for updates in ${dir}..."
+        cd "${dir}"
+
+        # Check if there are changes to be pulled
+        if git fetch --quiet && git diff --quiet; then
+            echo "No changes to pull."
+        else
+            update_repo
+        fi
+        cd "${BASE_DIR}"
+    fi
+done
+
+echo
+echo "+++ updates.log"
+
+tail "${BASE_DIR}/updates.log"

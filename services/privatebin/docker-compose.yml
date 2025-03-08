@@ -187,3 +187,5 @@ services:
         dir = PATH "data"
         EOF
         /usr/sbin/unitd --no-daemon --log "/dev/stdout" --tmpdir "/tmp"
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"

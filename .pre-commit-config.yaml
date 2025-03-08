@@ -7,3 +7,7 @@ repos:
     rev: v2.13.1-beta
     hooks:
       - id: hadolint
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0  
+    hooks:
+      - id: check-yaml

@@ -3,9 +3,11 @@ alerting:
   ntfy:
     url: "${NTFY_URL}"
     topic: "${NTFY_TOPIC}"
+    token: "${NTFY_TOKEN}"
     priority: 1
     default-alert:
       failure-threshold: 3
+      success-threshold: 2
       send-on-resolved: true
 
 connectivity:

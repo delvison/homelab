@@ -1,0 +1,20 @@
+set dotenv-load
+
+deploy_host := "$HOST-docker"
+
+yeet-files:
+  @find . -maxdepth 1 -type d -not -name . | while read dir; do scp -r "$dir" {{deploy_host}}:$BASE_DIR; done
+
+set-context:
+  @echo "(+) Setting Docker context..."
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+
+deploy: set-context yeet-files
+  BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
+
+logs:
+  docker compose logs -f
+
+port-forward:
+  @ssh -L 6080:localhost:6080 {{deploy_host}}

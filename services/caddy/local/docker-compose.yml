@@ -31,11 +31,6 @@ services:
                   resolvers 1.1.1.1 1.0.0.1
               }
           }
-          @nas host nas.local.${DOMAIN}
-          handle @nas {
-            cache
-            reverse_proxy ${NAS}:8080
-          }
 
           @audiobookshelf host audiobookshelf.local.${DOMAIN}
           handle @audiobookshelf {
@@ -43,33 +38,12 @@ services:
             reverse_proxy ${SERVER}:2008
           }
 
-          @proxmox host proxmox.local.${DOMAIN}
-          handle @proxmox {
+          @authentik host authentik.local.${DOMAIN}
+          handle @authentik {
             cache
-            reverse_proxy 192.168.1.2:8006
-          }
-
-          @jellyfin host jellyfin.local.${DOMAIN}
-          handle @jellyfin {
-            cache
-            reverse_proxy ${NAS}:8096
-          }
-
-          @portainer-nas host portainer-nas.local.${DOMAIN}
-          handle @portainer-nas {
-            cache
-            reverse_proxy https://${NAS}:19943 {
-              transport http {
-                tls
-                tls_insecure_skip_verify
-              }
+            reverse_proxy ${SERVER3}:9000 {
+              header_up Host {http.reverse_proxy.upstream.hostport}
             }
-          }
-
-          @uptime-kuma host uptime-kuma.local.${DOMAIN}
-          handle @uptime-kuma {
-            cache
-            reverse_proxy ${SERVER3}:3001
           }
 
           @btcexplorer host btcexplorer.local.${DOMAIN}
@@ -84,12 +58,62 @@ services:
             reverse_proxy ${SERVER3}:3128
           }
 
-          @authentik host authentik.local.${DOMAIN}
-          handle @authentik {
+          @gatus host gatus.local.${DOMAIN}
+          handle @gatus {
             cache
-            reverse_proxy ${SERVER3}:9000 {
-              header_up Host {http.reverse_proxy.upstream.hostport}
+            reverse_proxy ${SERVER}:8076
+          }
+
+          @grafana host grafana.local.${DOMAIN}
+          handle @grafana {
+            cache
+            reverse_proxy ${SERVER3}:3000
+          }
+
+          @influxdb host influxdb.local.${DOMAIN}
+          handle @influxdb {
+            cache
+            reverse_proxy ${SERVER3}:8086
+          }
+
+          @jellyfin host jellyfin.local.${DOMAIN}
+          handle @jellyfin {
+            cache
+            reverse_proxy ${NAS}:8096
+          }
+
+          @navidrome host navidrome.local.${DOMAIN}
+          handle @navidrome {
+            reverse_proxy ${SERVER3}:4553
+          }
+
+          @nas host nas.local.${DOMAIN}
+          handle @nas {
+            cache
+            reverse_proxy ${NAS}:8080
+          }
+
+          @portainer-nas host portainer-nas.local.${DOMAIN}
+          handle @portainer-nas {
+            cache
+            reverse_proxy https://${NAS}:19943 {
+              transport http {
+                tls
+                tls_insecure_skip_verify
+              }
             }
+          }
+
+          @proxmox host proxmox.local.${DOMAIN}
+          handle @proxmox {
+            cache
+            reverse_proxy ${PSERVER}:8006
+          }
+
+          @uptime-kuma host uptime-kuma.local.${DOMAIN}
+          handle @uptime-kuma {
+            cache
+            reverse_proxy http://uptime-kuma.homelab.local.${DOMAIN}
           }
 
           @test host test.local.${DOMAIN}

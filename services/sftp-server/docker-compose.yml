@@ -30,3 +30,5 @@ services:
         }
         EOF
         tini -- dotnet ES.SFTP.dll
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

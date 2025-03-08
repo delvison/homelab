@@ -1,0 +1,56 @@
+---
+- name: Create keyring directory
+  file:
+    path: "/etc/apt/keyrings"
+    state: directory
+    mode: '0755'
+
+- name: Add GPG key for Heckel repository
+  ansible.builtin.get_url:
+    url: "https://archive.heckel.io/apt/pubkey.txt"
+    dest: "/tmp/heckel_pubkey.txt"
+    mode: '0644'
+
+- name: Add GPG key
+  ansible.builtin.shell: |
+    sudo apt-key add /tmp/heckel_pubkey.txt
+  become: yes
+
+- name: Install apt-transport-https
+  apt:
+    name: apt-transport-https
+    state: present
+
+- name: Add repository
+  copy:
+    content: |
+      deb [arch=amd64] https://archive.heckel.io/apt debian main 
+    dest: "/etc/apt/sources.list.d/archive.heckel.io.list" 
+    mode: '644'
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install NTFY
+  apt:
+    name: ntfy
+    state: present
+
+- name: create server.yml
+  template:
+    src: server.yml.j2
+    dest: /etc/ntfy/server.yml
+    owner: ntfy
+    group: ntfy
+    mode: '0644'
+
+- name: Enable NTFY service
+  systemd:
+    name: ntfy
+    enabled: yes
+
+- name: Start NTFY service
+  systemd:
+    name: ntfy
+    state: started

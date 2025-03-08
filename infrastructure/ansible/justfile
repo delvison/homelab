@@ -13,7 +13,13 @@ run-bitcoin-core:
   ansible-playbook -i inventory.ini site.yaml --tags=bitcoin-core -K
 
 run-caddy:
-  ansible-playbook -i inventory.ini site.yaml --tags=caddy -K
+  ansible-playbook -i inventory.ini caddy_server.yaml --tags=caddy -K
 
 run-dojo:
   ansible-playbook -i inventory.ini site.yaml --tags=dojo -K
+
+run-git-server:
+  ansible-playbook -i inventory.ini git-server.yaml -K
+
+run-ntfy-server:
+  ansible-playbook -i inventory.ini ntfy_server.yaml -K

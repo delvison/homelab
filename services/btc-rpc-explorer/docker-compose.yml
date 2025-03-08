@@ -9,6 +9,8 @@ services:
     #   - ${BASE_DIR:-.}/.env:/root/.config/btc-rpc-explorer.env
     env_file:
       - .env
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"
 
   tor:
     container_name: btc-rpc-tor
@@ -26,6 +28,8 @@ services:
         HiddenServicePort 80 btc-rpc-explorer:3002
         EOF
         /entrypoint.sh tor -f /usr/local/etc/tor/.torrc
+    labels:
+      - com.centurylinklabs.watchtower.enable=true"
 
 volumes:
   tor-vol:

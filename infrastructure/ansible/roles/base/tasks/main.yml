@@ -34,6 +34,30 @@
     key: "{{ admin_ssh_public_key }}"
     state: present
 
+- name: create prompt.sh
+  template:
+    src: prompt.sh.j2
+    dest: /etc/profile.d/prompt.sh
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Append umask to /etc/profile
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    state: present
+    regexp: '^umask.*'
+    line: |
+      umask 077
+
+- name: Append prompt settings to /etc/profile
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    state: present
+    regexp: '^source \/etc\/profile.d\/prompt\.sh$'
+    line: |
+      source /etc/profile.d/prompt.sh
+
 - name: install "rsyslog" package
   become: true
   ansible.builtin.apt:
@@ -99,9 +123,6 @@
            maxretry = 3
            bantime = 600"
     state: present
+  notify: restart fail2ban
   when: ansible_os_family == "RedHat"
 
-- name: Restart fail2ban service
-  systemd:
-    name: fail2ban
-    state: restarted

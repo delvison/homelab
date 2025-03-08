@@ -1,0 +1,8 @@
+---
+- name: Run base
+  become: true
+  hosts: all
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - base

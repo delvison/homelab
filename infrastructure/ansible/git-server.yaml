@@ -1,0 +1,19 @@
+# Description: Use this playbook to install a git-server.
+---
+- hosts: git-server
+  become: true
+  pre_tasks:
+    - name: update repository index (ubuntu)
+      tags: always
+      apt:
+        update_cache: yes
+      changed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+- hosts: git-server
+  become: true
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - base
+    - git-server

@@ -1,0 +1,8 @@
+# Description: Use this playbook to install a ntfy-server.
+---
+- hosts: all
+  become: true
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - ntfy-server

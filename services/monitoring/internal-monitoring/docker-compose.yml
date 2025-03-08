@@ -1,4 +1,20 @@
+---
+networks:
+  internal-monitoring:
 services:
+  tor:
+    image: btcpayserver/tor:0.4.8.10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.02'
+          memory: 128M
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - internal-monitoring
+
   ntfy-server:
     image: binwiederhier/ntfy
     container_name: ntfy-server
@@ -21,28 +37,15 @@ services:
       - ${BASE_DIR:-.}/ntfy/ntfy:/var/lib/ntfy
     ports:
       - 12500:80
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
+          memory: 64M
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-
-  gatus-internal:
-    image: twinproduction/gatus
-    container_name: gatus-internal
-    user: ${UID}:${GID}
-    ports:
-      - 8076:8080
-    volumes:
-      - "${BASE_DIR:-.}/gatus/config/:/config"  # can drop in more config files in the host as these files get merged
-      - "${BASE_DIR:-.}/gatus/data:/data/"
-    environment:
-      GATUS_CONFIG_PATH: "/config"
-      NTFY_URL: "${NTFY_URL}"
-      NTFY_TOKEN: "${NTFY_TOKEN}"
-      NTFY_TOPIC: "${NTFY_TOPIC}"
-      GATUS_DB_USER: "${GATUS_DB_USER}"
-      GATUS_DB_PASSWORD: "${GATUS_DB_PASSWORD}"
-    restart: always
-    depends_on:
-      - gatus-postgres-internal
+    networks:
+      - internal-monitoring
 
   gatus-postgres-internal:
     image: postgres
@@ -53,6 +56,53 @@ services:
       - POSTGRES_DB=gatus
       - POSTGRES_USER=${GATUS_DB_USER}
       - POSTGRES_PASSWORD=${GATUS_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "${GATUS_DB_USER}", "-d", "gatus"]
+      interval: 20s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
+          memory: 128M
+    networks:
+      - internal-monitoring
+
+  gatus-internal:
+    image: twinproduction/gatus:stable
+    container_name: gatus-internal
+    user: ${UID}:${GID}
+    ports:
+      - 8076:8080
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - "${BASE_DIR:-.}/gatus/config/:/config"  # can drop in more config files in the host as these files get merged
+      - "${BASE_DIR:-.}/gatus/data:/data/"
+    environment:
+      GATUS_CONFIG_PATH: "/config"
+      NTFY_URL: "${NTFY_URL}"
+      NTFY_TOKEN: "${NTFY_TOKEN}"
+      NTFY_TOPIC: "${NTFY_TOPIC}"
+      GATUS_DB_USER: "${GATUS_DB_USER}"
+      GATUS_DB_PASSWORD: "${GATUS_DB_PASSWORD}"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.02'
+          memory: 128M
+    restart: always
+    depends_on:
+      tor:
+        condition: service_started
+      ntfy-server:
+        condition: service_started
+      gatus-postgres-internal:
+        condition: service_healthy
+    networks:
+      - internal-monitoring
 
 volumes:
   gatus-postgres-vol:

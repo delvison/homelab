@@ -1,0 +1,14 @@
+# Description: Use this playbook to install a Caddy
+# ref: https://caddyserver.com/
+---
+- name: Install Caddy
+  become: true
+  hosts: all
+  vars:
+    caddy_version: 2.9.1
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - caddy
+  tags:
+    - caddy

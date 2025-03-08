@@ -1,12 +1,12 @@
 - name: Download Caddy deb file
   get_url:
-    url: "{{ caddy_deb_url }}"
-    dest: /tmp/caddy_2.8.4_linux_amd64.deb
+    url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_amd64.deb"
+    dest: /tmp/caddy_{{ caddy_version }}_linux_amd64.deb
   when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
 
 - name: Install Caddy deb file
   apt:
-    deb: /tmp/caddy_2.8.4_linux_amd64.deb
+    deb: /tmp/caddy_{{ caddy_version }}_linux_amd64.deb
     state: present
   when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
 
@@ -19,7 +19,7 @@
 
 - name: Download Caddy server binary with cloudflare module
   get_url:
-    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare&idempotency=40863542593994"
+    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare"
     dest: /usr/bin/caddy
     mode: '0755'
   become: yes
