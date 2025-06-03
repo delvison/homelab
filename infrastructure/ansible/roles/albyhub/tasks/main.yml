@@ -1,0 +1,28 @@
+---
+- name: add bitcoin group
+  ansible.builtin.group:
+    name: bitcoin
+    state: present
+
+- name: add bitcoin user
+  ansible.builtin.user:
+    name: bitcoin
+    group: bitcoin
+    create_home: yes
+
+- name: create bitcoin directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: bitcoin
+    group: bitcoin
+  with_items:
+    - /tmp/albyhub
+    - /opt/albyhub
+
+- name: install unzip
+  become: true
+  ansible.builtin.apt:
+    name: unzip
+
+- include_tasks: install_albyhub.yml

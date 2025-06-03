@@ -1,0 +1,18 @@
+[Unit]
+Description=AlbyHub Service
+After=network.target
+Requires=lnd.service
+After=lnd.service
+
+[Service]
+Type=simple
+User=bitcoin
+ExecStart=/usr/local/bin/albyhub
+Restart=on-failure
+RestartSec=60
+RemainAfterExit=yes
+KillMode=process
+Environment=XDG_DATA_HOME=/opt PORT={{ albyhub_port }} LN_BACKEND_TYPE=LND LND_ADDRESS=localhost:10009 LND_CERT_FILE=/opt/lnd/data/tls.cert LND_MACARON_FILE=/opt/lnd/data/chain/bitcoin/mainnet/admin.macaroon
+
+[Install]
+WantedBy=multi-user.target
