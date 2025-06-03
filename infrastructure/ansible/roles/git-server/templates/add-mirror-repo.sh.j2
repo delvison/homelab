@@ -11,7 +11,7 @@ fi
 
 cd ${BASE_DIR}
 
-if git clone "$1"; then
+if proxychains git clone "$1"; then
     echo "$(date "+%Y-%m-%d_%H:%M:%S") : Cloned $1" >> ${BASE_DIR}/updates.log
     echo "Repository '$1' cloned successfully."
 else

@@ -25,6 +25,7 @@
       - git
       - git-annex
       - cron
+      - proxychains
     state: present
   when: ansible_os_family == "Debian"
 
@@ -34,6 +35,7 @@
       - git
       - git-annex
       - cron
+      - proxychains
     state: present
   when: ansible_os_family == "RedHat"
 
@@ -75,6 +77,14 @@
   ansible.builtin.template:
     src: templates/create-repo.sh.j2
     dest: "/home/git/git-shell-commands/create-repo"
+    mode: '0755'
+    owner: git
+    group: git
+
+- name: Create list-repo script
+  ansible.builtin.template:
+    src: templates/list-repos.sh.j2
+    dest: "/home/git/git-shell-commands/list-repos"
     mode: '0755'
     owner: git
     group: git

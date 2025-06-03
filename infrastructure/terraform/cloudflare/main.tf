@@ -31,6 +31,7 @@ locals {
   zone_id = data.cloudflare_zone.zone.zone_id
   domain  = data.cloudflare_zone.zone.name
   proxied = [
-    "n"
+    "n",
+    "ln"
   ]
 }

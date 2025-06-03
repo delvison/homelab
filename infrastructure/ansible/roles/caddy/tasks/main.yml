@@ -24,6 +24,18 @@
     mode: '0755'
   become: yes
 
+- name: Check if Caddyfile exists
+  stat:
+    path: /etc/caddy/Caddyfile
+  register: ansible_stat
+
+- name: Copy Caddyfile to backup if exists
+  copy:
+    src: /etc/caddy/Caddyfile
+    dest: /etc/caddy/Caddyfile.bk
+    remote_src: yes
+  when: ansible_stat.stat.exists
+
 - name: Create Caddyfile
   template:
     src: templates/Caddyfile.j2

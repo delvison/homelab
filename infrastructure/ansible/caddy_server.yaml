@@ -5,10 +5,9 @@
   become: true
   hosts: all
   vars:
+    # https://github.com/caddyserver/caddy/releases/
     caddy_version: 2.9.1
   vars_files:
     - "./vars/vault.yml"
   roles:
-    - caddy
-  tags:
     - caddy
