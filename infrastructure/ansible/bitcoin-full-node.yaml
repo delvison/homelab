@@ -1,0 +1,11 @@
+# Description: Use this playbook to install a bitcoin full node.
+# ansible-playbook -i inventory.ini bitcoin-full-node.yaml -K
+---
+- hosts: bitcoin-node
+  become: true
+  vars_files:
+    - "./vars/vault.yml"
+  roles:
+    - base
+    - bitcoin-knots
+    - fulcrum

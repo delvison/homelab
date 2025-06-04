@@ -1,0 +1,17 @@
+# Reference: https://gitlab.torproject.org/tpo/core/tor/-/blob/main/src/config/torrc.sample.in
+#PidFile /etc/tor/tor.pid
+
+# Additional security settings for Tor configuration
+ControlPort 9051
+
+# Enable additional logging for debugging purposes
+Log notice file /var/log/tor/notices.log
+Log debug file /var/log/tor/debug.log
+
+# Enable cookie authentication for control port
+CookieAuthentication 1
+
+# Disable IPv6 unless you specifically need it
+#DisableIPv6 1
+
+#%include /etc/torrc.d/*.conf

@@ -1,0 +1,60 @@
+---
+- name: add tor group
+  ansible.builtin.group:
+    name: debian-tor
+    state: present
+  tags:
+    - tor
+
+- name: add tor user
+  ansible.builtin.user:
+    name: debian-tor
+    group: debian-tor
+    create_home: no
+  tags:
+    - tor
+
+- name: create tor directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: debian-tor
+    group: debian-tor
+  with_items:
+    - /etc/tor
+    - /etc/torrc.d
+
+# - name: create torrc
+#   template:
+#     src: torrc.j2
+#     dest: /etc/tor/torrc
+#     owner: debian-tor
+#     group: debian-tor
+#     mode: '0644'
+#   tags:
+#     - tor
+
+- name: Add tor config
+  blockinfile:
+    path: /etc/tor/torrc
+    insertafter: BOF
+    state: present
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - tor config"
+    create: yes
+    backup: yes
+    append_newline: true
+    block: |
+      # Reference: https://gitlab.torproject.org/tpo/core/tor/-/blob/main/src/config/torrc.sample.in
+      # Additional security settings for Tor configuration
+      ControlPort 9051
+
+      # Enable additional logging for debugging purposes
+      Log notice file /var/log/tor/notices.log
+      Log debug file /var/log/tor/debug.log
+
+      # Enable cookie authentication for control port
+      CookieAuthentication 1
+
+      #%include /etc/torrc.d/*.conf
+  tags:
+    - tor

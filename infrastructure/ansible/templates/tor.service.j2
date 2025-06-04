@@ -1,0 +1,16 @@
+[Unit]
+Description=Anonymizing overlay network (The Onion Router)
+Documentation=https://www.torproject.org/docs/tor-doc-systemd.html.en
+After=network.target
+
+[Service]
+ExecStart=/usr/sbin/tor
+User=debian-tor
+Group=debian-tor
+Type=forking
+PIDFile=/run/tor.pid
+ExecStop=/bin/kill -15 $MAIN_PID
+ExecStopPost=/bin/rm -f /var/run/tor.pid
+
+[Install]
+WantedBy=multi-user.target

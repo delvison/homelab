@@ -1,0 +1,30 @@
+---
+- include_tasks: install_dependencies.yml
+
+- name: add bitcoin group
+  ansible.builtin.group:
+    name: bitcoin
+    state: present
+
+- name: add bitcoin user
+  ansible.builtin.user:
+    name: bitcoin
+    group: bitcoin
+    create_home: yes
+
+- name: create fulcrum directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: bitcoin
+    group: bitcoin
+  with_items:
+    - /opt/fulcrum
+    - /opt/fulcrum/data
+    - /opt/tor
+    - /opt/tor/data
+    - /opt/tor/fulcrum
+
+- include_tasks: "{{ playbook_dir }}/tasks/wait_tor.yml"
+# - include_tasks: "{{ playbook_dir }}/tasks/configure_tor.yml"
+- include_tasks: install_fulcrum.yml

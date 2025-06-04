@@ -1,0 +1,53 @@
+- name: add tor group
+  ansible.builtin.group:
+    name: tor
+    state: present
+  tags:
+    - tor
+
+- name: add tor user
+  ansible.builtin.user:
+    name: tor
+    group: tor
+    create_home: no
+  tags:
+    - tor
+
+- name: create torrc
+  template:
+    src: torrc.j2
+    dest: /etc/tor/torrc
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 
+    - restart tor
+  tags:
+    - tor
+
+- name: wait for tor hidden service hostname file to be created
+  ansible.builtin.wait_for:
+    path: /var/lib/tor/fulcrum/hostname
+    state: present
+    timeout: 300
+  register: tor_hostname_wait_result
+  tags:
+    - fulcrum
+
+- name: handle errors
+  ansible.builtin.fail:
+    msg: "Tor hidden service hostname file was not created within the specified time"
+  when: tor_hostname_wait_result is failed
+  tags:
+    - fulcrum
+
+- name: Get Tor hostname
+  command: cat /var/lib/tor/fulcrum/hostname
+  register: tor_hostname
+  tags:
+    - fulcrum
+
+- debug:
+    var: tor_hostname.stdout
+  tags:
+    - fulcrum

@@ -1,3 +1,4 @@
+---
 - name: upload wait_tor.sh
   copy:
     src: wait_tor.sh

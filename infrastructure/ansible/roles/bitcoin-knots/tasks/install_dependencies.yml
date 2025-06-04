@@ -1,0 +1,14 @@
+- name: install tor
+  become: true
+  ansible.builtin.apt:
+    name: tor
+
+- name: install gpg
+  become: true
+  ansible.builtin.apt:
+    name: gnupg
+
+- name: install git
+  become: true
+  ansible.builtin.apt:
+    name: git
