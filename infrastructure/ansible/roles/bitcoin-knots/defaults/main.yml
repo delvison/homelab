@@ -1,0 +1,6 @@
+---
+knots_version: "28.1.knots20250305"
+bitcoin_pkg: "bitcoin-{{ knots_version }}-x86_64-linux-gnu.tar.gz"
+knots_major_version: "28.x"
+bitcoin_knots_url: "https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/{{ bitcoin_pkg }}"
+bitcoin_knots_dir: "/opt/bitcoin/bitcoin-{{knots_version}}"

@@ -2,9 +2,12 @@ set dotenv-load
 
 deploy_host := "$HOST"
 
-deploy:
+set-context:
+  @echo "(+) Setting Docker context..."
   @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
   @docker context use {{deploy_host}}
+
+deploy: set-context
   docker compose up -d --force-recreate
   docker compose ps
 
@@ -12,6 +15,9 @@ connect:
   @echo "Establishing SSH tunnel..."
   ssh -fNL 443:localhost:443 $HOST
   xdg-open https://localhost
+
+save-secrets:
+  sops -e .env > .env.enc
 
 test:
   bats test

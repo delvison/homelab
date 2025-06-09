@@ -1,11 +1,3 @@
----
-- name: Set facts
-  set_fact:
-    fulcrum_version: "1.11.1"
-
-- name: Set facts
-  set_fact:
-    fulcrum_version_id: "Fulcrum-{{ fulcrum_version }}-x86_64-linux"
 
 # fixme sudo -u debian-tor tor
 # - name: create torrc.fulcrum.conf
@@ -89,134 +81,98 @@
 
 - include_tasks: "{{ playbook_dir }}/tasks/wait_tor.yml"
 
-
 - name: Check if {{ fulcrum_version }} installed
   stat:
     path: "{{ fulcrum_version_id }}"
   register: fulcrum_version_stat
 
-- name: download fulcrum via tor
-  command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
-  args:
-    creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
-  tags:
-    - fulcrum
+- name: install fulcrum-{{ fulcrum_version }}
   when: fulcrum_version_stat.stat.exists == false
+  block:
+    - name: download fulcrum via tor
+      command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
+      args:
+        creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
 
-- name: download fulcrum checksums via tor
-  command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-shasums.txt
-  args:
-    creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: download fulcrum checksums via tor
+      command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-shasums.txt
+      args:
+        creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt
 
-- name: download fulcrum signature
-  command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
-  args:
-    creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: download fulcrum signature
+      command: torsocks curl -s -L -o /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc https://github.com/cculianu/Fulcrum/releases/download/v{{ fulcrum_version }}/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
+      args:
+        creates: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
 
-- name: verify sha256sum
-  command: sha256sum --check --ignore-missing /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt
-  args:
-    chdir: /tmp/fulcrum
-  register: package_checksum
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: verify sha256sum
+      command: sha256sum --check --ignore-missing /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt
+      args:
+        chdir: /tmp/fulcrum
+      register: package_checksum
 
-- name: assert sha256sum contains "OK"
-  assert:
-    that: package_checksum.stdout.find('OK') != -1
-    msg: "Package checksum verification failed. Please verify the package checksum manually."
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: assert sha256sum contains "OK"
+      assert:
+        that: package_checksum.stdout.find('OK') != -1
+        msg: "Package checksum verification failed. Please verify the package checksum manually."
  
-- name: download fulcrum pgp key
-  get_url:
-    url: https://fulcrumserver.org/calinkey.txt
-    dest: /tmp/fulcrum/calinkey.txt
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: download fulcrum pgp key
+      get_url:
+        url: https://fulcrumserver.org/calinkey.txt
+        dest: /tmp/fulcrum/calinkey.txt
 
-- name: gpg import fulcrum pgp key
-  command: gpg --import /tmp/fulcrum/calinkey.txt
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: gpg import fulcrum pgp key
+      command: gpg --import /tmp/fulcrum/calinkey.txt
 
-- name: check fulcrum signature
-  command: gpg --verify /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
-  args:
-    chdir: /tmp/fulcrum
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: check fulcrum signature
+      command: gpg --verify /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-shasums.txt.asc
+      args:
+        chdir: /tmp/fulcrum
 
-- name: Generate self-signed RSA key if not exists
-  become: yes
-  command: openssl genrsa -out /opt/fulcrum/fulcrum.key 2048
-  args:
-    creates: /opt/fulcrum/fulcrum.key
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: Generate self-signed RSA key if not exists
+      become: yes
+      command: openssl genrsa -out /opt/fulcrum/fulcrum.key 2048
+      args:
+        creates: /opt/fulcrum/fulcrum.key
 
-- name: Set ownership and permissions for fulcrum.key
-  become: yes
-  ansible.builtin.file:
-    path: /opt/fulcrum/fulcrum.key
-    owner: bitcoin
-    group: bitcoin
-    mode: '0600'
-  when: fulcrum_version_stat.stat.exists == false
+    - name: Set ownership and permissions for fulcrum.key
+      become: yes
+      ansible.builtin.file:
+        path: /opt/fulcrum/fulcrum.key
+        owner: bitcoin
+        group: bitcoin
+        mode: '0600'
 
-- name: create openssl self-signed cert conf
-  template:
-    src: self-signed-cert.conf.j2
-    dest: /opt/fulcrum/localhost.conf
-    owner: bitcoin
-    group: bitcoin
-    mode: '0644'
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: create openssl self-signed cert conf
+      template:
+        src: self-signed-cert.conf.j2
+        dest: /opt/fulcrum/localhost.conf
+        owner: bitcoin
+        group: bitcoin
+        mode: '0644'
 
-- name: Generate self-signed RSA key if not exists
-  become: yes
-  command: openssl req -new -x509 -sha256 -key /opt/fulcrum/fulcrum.key -out /opt/fulcrum/fulcrum.cert -days 3650 -config /opt/fulcrum/localhost.conf
-  args:
-    creates: /opt/fulcrum/fulcrum.cert
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: Generate self-signed RSA key if not exists
+      become: yes
+      command: openssl req -new -x509 -sha256 -key /opt/fulcrum/fulcrum.key -out /opt/fulcrum/fulcrum.cert -days 3650 -config /opt/fulcrum/localhost.conf
+      args:
+        creates: /opt/fulcrum/fulcrum.cert
 
-- name: Set ownership and permissions for fulcrum.cert
-  become: yes
-  ansible.builtin.file:
-    path: /opt/fulcrum/fulcrum.cert
-    owner: bitcoin
-    group: bitcoin
-    mode: '0600'
-  when: fulcrum_version_stat.stat.exists == false
+    - name: Set ownership and permissions for fulcrum.cert
+      become: yes
+      ansible.builtin.file:
+        path: /opt/fulcrum/fulcrum.cert
+        owner: bitcoin
+        group: bitcoin
+        mode: '0600'
 
-- name: extract fulcrum
-  unarchive:
-    src: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
-    dest: /opt/fulcrum
-    owner: bitcoin
-    group: bitcoin
-    remote_src: true
-  # notify: 
-  #   - cleanup fulcrum files
-  tags:
-    - fulcrum
-  when: fulcrum_version_stat.stat.exists == false
+    - name: extract fulcrum
+      unarchive:
+        src: /tmp/fulcrum/Fulcrum-{{ fulcrum_version }}-x86_64-linux.tar.gz
+        dest: /opt/fulcrum
+        owner: bitcoin
+        group: bitcoin
+        remote_src: true
+      # notify: 
+      #   - cleanup fulcrum files
 
 - name: create systemd unit file
   template:
@@ -226,5 +182,3 @@
   notify: 
     - reload systemd
     - restart fulcrum
-  tags:
-    - fulcrum

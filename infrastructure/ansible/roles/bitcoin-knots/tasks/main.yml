@@ -9,6 +9,7 @@
     name: bitcoin
     group: bitcoin
     create_home: yes
+    shell: /bin/bash
 
 - name: create bitcoin directories
   file:
@@ -34,5 +35,4 @@
 
 - include_tasks: install_dependencies.yml
 - include_tasks: "{{ playbook_dir }}/tasks/configure_tor.yml"
-- include_tasks: "{{ playbook_dir }}/tasks/wait_tor.yml"
 - include_tasks: install_bitcoin.yml

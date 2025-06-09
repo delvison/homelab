@@ -1,130 +1,84 @@
 # knots_version = 28.1.knots20250305
 ---
-- name: Set knots version
-  set_fact:
-    knots_version: "28.1.knots20250305"
-
-- name: Set Bitcoin package name
-  set_fact:
-    bitcoin_pkg: "bitcoin-{{ knots_version }}-x86_64-linux-gnu.tar.gz"
-
-- name: Set knots_major_version
-  set_fact:
-    knots_major_version: "28.x"
-
-- name: Set Bitcoin Knots URL
-  set_fact:
-    bitcoin_knots_url: "https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/{{ bitcoin_pkg }}"
-    bitcoin_knots_dir: "/opt/bitcoin/bitcoin-{{knots_version}}"
-
 - name: Check if {{ bitcoin_knots_dir }} directory exists
   stat:
     path: "{{ bitcoin_knots_dir }}"
   register: bitcoin_dir_stat
 
-- name: download bitcoin-knots {{ knots_version }}
-  get_url:
-    url: "{{ bitcoin_knots_url }}"
-    dest: /tmp/{{ bitcoin_pkg }}
-  tags:
-    - bitcoin-knots
+- name: install bitcoin-knots-{{ knots_version }}
   when: bitcoin_dir_stat.stat.exists == false
+  block:
+    - include_tasks: "{{ playbook_dir }}/tasks/wait_tor.yml"
+    - name: download bitcoin-knots {{ knots_version }}
+      get_url:
+        url: "{{ bitcoin_knots_url }}"
+        dest: /tmp/{{ bitcoin_pkg }}
 
-- name: download bitcoin-knots via tor
-  command: torsocks curl -s -L -o /tmp/{{ bitcoin_pkg }} {{ bitcoin_knots_url }}
-  args:
-    creates: /tmp/{{ bitcoin_pkg }}
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: download bitcoin-knots via tor
+      command: torsocks curl -s -L -o /tmp/{{ bitcoin_pkg }} {{ bitcoin_knots_url }}
+      args:
+        creates: /tmp/{{ bitcoin_pkg }}
 
-- name: download sha256sums via tor
-  command: torsocks curl -s -L -o /tmp/SHA256SUMS https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/SHA256SUMS
-  args:
-    creates: /tmp/SHA256SUMS
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: download sha256sums via tor
+      command: torsocks curl -s -L -o /tmp/SHA256SUMS https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/SHA256SUMS
+      args:
+        creates: /tmp/SHA256SUMS
 
-- name: download signatures via tor
-  command: torsocks curl -s -L -o /tmp/SHA256SUMS.asc https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/SHA256SUMS.asc
-  args:
-    creates: /tmp/SHA256SUMS.asc
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: download signatures via tor
+      command: torsocks curl -s -L -o /tmp/SHA256SUMS.asc https://bitcoinknots.org/files/{{ knots_major_version }}/{{ knots_version }}/SHA256SUMS.asc
+      args:
+        creates: /tmp/SHA256SUMS.asc
 
-- name: verify sha256sum
-  command: sha256sum --check --ignore-missing /tmp/SHA256SUMS
-  args:
-    chdir: /tmp
-  register: package_checksum
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: verify sha256sum
+      command: sha256sum --check --ignore-missing /tmp/SHA256SUMS
+      args:
+        chdir: /tmp
+      register: package_checksum
 
-- name: assert sha256sum contains "OK"
-  assert:
-    that: package_checksum.stdout.find('OK') != -1
-    msg: "Package checksum verification failed. Please verify the package checksum manually."
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: assert sha256sum contains "OK"
+      assert:
+        that: package_checksum.stdout.find('OK') != -1
+        msg: "Package checksum verification failed. Please verify the package checksum manually."
 
-- name: git clone https://github.com/bitcoinknots/guix.sigs.git
-  become: yes
-  become_user: bitcoin
-  git:
-    repo: https://github.com/bitcoinknots/guix.sigs.git
-    dest: /opt/bitcoin/guix.sigs
-    depth: 1
-    force: true
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: git clone https://github.com/bitcoinknots/guix.sigs.git
+      become: yes
+      become_user: bitcoin
+      git:
+        repo: https://github.com/bitcoinknots/guix.sigs.git
+        dest: /opt/bitcoin/guix.sigs
+        depth: 1
+        force: true
 
-- name: Find all dev builder keys
-  become: yes
-  become_user: bitcoin
-  find:
-    paths: /opt/bitcoin/guix.sigs/builder-keys
-    file_type: file
-  register: pgp_files
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: Find all dev builder keys
+      become: yes
+      become_user: bitcoin
+      find:
+        paths: /opt/bitcoin/guix.sigs/builder-keys
+        file_type: file
+      register: pgp_files
 
-- name: gpg import dev builder keys
-  become: yes
-  become_user: bitcoin
-  command: gpg --import {{ item.path }}
-  loop: "{{ pgp_files.files }}"
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: gpg import dev builder keys
+      become: yes
+      become_user: bitcoin
+      command: gpg --import {{ item.path }}
+      loop: "{{ pgp_files.files }}"
 
-- name: check bitcoin-core {{ knots_version }} signatures
-  become: yes
-  become_user: bitcoin
-  command: gpg --verify /tmp/SHA256SUMS.asc
-  args:
-    chdir: /tmp
-  notify: 
-    - cleanup bitcoin files
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: check bitcoin-{{ knots_version }} signatures
+      become: yes
+      become_user: bitcoin
+      command: gpg --verify /tmp/SHA256SUMS.asc
+      args:
+        chdir: /tmp
+      notify: 
+        - cleanup bitcoin files
 
-- name: extract bitcoin-knots {{ knots_version }}
-  unarchive:
-    src: /tmp/bitcoin-{{ knots_version }}-x86_64-linux-gnu.tar.gz
-    dest: /opt/bitcoin
-    owner: bitcoin
-    group: bitcoin
-    remote_src: true
-  tags:
-    - bitcoin-knots
-  when: bitcoin_dir_stat.stat.exists == false
+    - name: extract bitcoin-{{ knots_version }}
+      unarchive:
+        src: /tmp/bitcoin-{{ knots_version }}-x86_64-linux-gnu.tar.gz
+        dest: /opt/bitcoin
+        owner: bitcoin
+        group: bitcoin
+        remote_src: true
 
 - name: create bitcoin.conf
   template:
@@ -133,8 +87,6 @@
     owner: bitcoin
     group: bitcoin
     mode: '0644'
-  tags:
-    - bitcoin-knots
 
 - name: create systemd unit file
   template:
@@ -144,5 +96,17 @@
   notify: 
     - reload systemd
     - restart bitcoin
-  tags:
-    - bitcoin-knots
+
+- name: Add bitcoin binaries to PATH
+  become: yes
+  become_user: bitcoin
+  blockinfile:
+    path: /home/bitcoin/.bashrc
+    insertafter: EOF
+    state: present
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    create: yes
+    backup: yes
+    append_newline: true
+    block: |
+      PATH=${PATH}:/opt/bitcoin/bitcoin-{{ knots_version }}/bin

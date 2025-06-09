@@ -48,6 +48,7 @@
 - name: Enable NTFY service
   systemd:
     name: ntfy
+    daemon_reload: yes
     enabled: yes
 
 - name: Start NTFY service

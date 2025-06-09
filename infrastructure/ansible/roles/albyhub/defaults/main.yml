@@ -1,0 +1,5 @@
+---
+albyhub_pkg: "server-linux-x86_64.tar.bz2"
+albyhub_url: "https://getalby.com/install/hub/{{ albyhub_pkg }}"
+albyhub_port: 7085
+albyhub_dl_dir: "/opt/albyhub/"

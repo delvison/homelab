@@ -15,6 +15,11 @@ services:
     environment:
       CF_API_EMAIL: "${CF_API_EMAIL}"
       CF_API_KEY: "${CF_API_KEY}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
     entrypoint:
       - sh
       - -euc
@@ -67,13 +72,19 @@ services:
           @grafana host grafana.local.${DOMAIN}
           handle @grafana {
             cache
-            reverse_proxy ${SERVER3}:3000
+            reverse_proxy ${SERVER5}:3000
           }
 
           @influxdb host influxdb.local.${DOMAIN}
           handle @influxdb {
             cache
-            reverse_proxy ${SERVER3}:8086
+            reverse_proxy ${SERVER5}:8086
+          }
+
+          @otel host otel.local.${DOMAIN}
+          handle @otel {
+            cache
+            reverse_proxy ${SERVER5}:4318
           }
 
           @jellyfin host jellyfin.local.${DOMAIN}
@@ -104,10 +115,20 @@ services:
             }
           }
 
-          @proxmox host proxmox.local.${DOMAIN}
-          handle @proxmox {
+          @pve1 host pve1.local.${DOMAIN}
+          handle @pve1 {
             cache
-            reverse_proxy ${PSERVER}:8006
+            reverse_proxy https://${PSERVER}:8006 {
+              transport http {
+                tls
+                tls_insecure_skip_verify
+              }
+          }
+
+          @search host search.local.${DOMAIN}
+          handle @search {
+            cache
+            reverse_proxy ${SERVER}:6080
           }
 
           @uptime-kuma host uptime-kuma.local.${DOMAIN}

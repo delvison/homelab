@@ -1,0 +1,47 @@
+---
+- name: install git
+  become: true
+  ansible.builtin.apt:
+    name: git
+
+- name: install python3-venv
+  become: true
+  ansible.builtin.apt:
+    name: python3.11-venv
+
+- name: Ensure pip3 is installed
+  apt:
+    name: python3-pip
+    state: present
+
+- name: "Clone {{ repo_url }}"
+  become: yes
+  become_user: bitcoin
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ repo_dir }}"
+    update: yes
+
+- name: Create a virtual environment
+  become: yes
+  become_user: bitcoin
+  command: python3 -m venv ./venv
+  args:
+    chdir: "{{ repo_dir }}"
+    creates: "{{ venv_dir }}"
+
+- name: Install requirements
+  become: yes
+  become_user: bitcoin
+  command: ./venv/bin/pip3 install -r requirements.txt
+  args:
+    chdir: "{{ repo_dir }}"
+
+- name: create systemd unit file
+  template:
+    src: bitcoin-prometheus-exporter.service.j2
+    dest: /etc/systemd/system/bitcoin-prometheus-exporter.service
+    mode: '0644'
+  notify: 
+    - reload systemd
+    - restart bitcoin-prometheus-exporter  

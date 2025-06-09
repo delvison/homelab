@@ -22,6 +22,7 @@ services:
       # - 55679:55679 # zpages extension
     environment:
       HOST: ${HOST}
+      OTEL_AUTH_TOKEN: ${OTEL_AUTH_TOKEN}
     networks:
       - monitoring
     depends_on:
@@ -57,9 +58,10 @@ services:
         start_period: 30s
         retries: 5
 
+  # default creds: admin:admin
   grafana:
     image: grafana/grafana-enterprise
-    user: 1002:0
+    user: ${UID}:${GID}
     container_name: grafana
     restart: unless-stopped
     volumes:
@@ -74,7 +76,7 @@ services:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_DOMAIN="grafana.local.${DOMAIN}"
-        #- GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      # - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       # - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_admin_password
     networks:
       - monitoring

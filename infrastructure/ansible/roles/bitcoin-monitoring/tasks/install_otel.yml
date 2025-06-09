@@ -1,0 +1,53 @@
+---
+- name: Install wget
+  apt:
+    name: wget
+    state: present
+
+- name: Download OpenTelemetry Collector .deb package
+  get_url:
+    url: "{{ otel_col_url }}"
+    dest: "/tmp/{{ otel_col_package }}"
+
+- name: Install OpenTelemetry Collector .deb package
+  apt:
+    deb: "/tmp/{{ otel_col_package }}"
+
+- name: create otel config
+  template:
+    src: otel-config.yaml.j2
+    dest: /etc/otelcol/config.yaml
+    mode: '0644'
+  notify: 
+    - restart otelcol
+
+- name: create metrics directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: bitcoin
+    group: bitcoin
+  with_items:
+    - /opt/METRICS
+    - /opt/METRICS/1m
+
+- name: create collect-1m.sh script
+  template:
+    src: collect-1m.sh.j2
+    dest: /opt/METRICS/collect-1m.sh
+    mode: '0755'
+
+- name: create metrics-collect-systemd-status.sh script
+  template:
+    src: metrics-otel-collect-systemd-status.sh.j2
+    dest: /opt/METRICS/1m/metrics-otel-collect-systemd-status.sh
+    mode: '0755'
+
+- name: create metrics-otel-collect-1m systemd service
+  template:
+    src: metrics-otel-collect-1m.service.j2
+    dest: /etc/systemd/system/metrics-otel-collect-1m.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart metrics-collect-1m service

@@ -78,3 +78,12 @@
     user: "docker"
     key: "{{ admin_ssh_public_key }}"
     state: present
+
+- name: create docker-compose directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: docker
+    group: docker
+  with_items:
+    - /home/docker/docker-compose

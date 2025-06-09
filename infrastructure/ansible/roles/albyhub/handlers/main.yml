@@ -1,14 +1,14 @@
 - name: reload systemd
   command: systemctl daemon-reload
 
-- name: restart albyhub
+- name: start albyhub
   systemd:
     name: albyhub
-    state: restarted
+    state: started
 
-- name: cleanup files
-  file:
-    path: "{{ item }}"
-    state: absent
-  with_items:
-    - /tmp/albyhub
+# - name: cleanup albyhub
+#   file:
+#     path: "{{ item }}"
+#     state: absent
+#   with_items:
+#     - "{{ albyhub_dl_dir }}"

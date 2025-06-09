@@ -1,0 +1,13 @@
+[Unit]
+Description=Bitcoin Prometheus Exporter
+After=network.target
+
+[Service]
+User=bitcoin
+WorkingDirectory={{ repo_dir }}
+ExecStart={{ venv_dir }}/bin/python3 {{ repo_dir }}/bitcoind-monitor.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

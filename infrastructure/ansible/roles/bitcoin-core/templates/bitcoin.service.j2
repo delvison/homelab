@@ -13,7 +13,7 @@ ExecStop=/opt/bitcoin/bitcoin-{{ version }}/bin/bitcoin-cli -conf=/opt/bitcoin/b
 KillMode=process
 Restart=always
 TimeoutSec=120
-RestartSec=30
+RestartSec=60
 
 [Install]
 WantedBy=multi-user.target

@@ -11,6 +11,7 @@
     name: bitcoin
     group: bitcoin
     create_home: yes
+    shell: /bin/bash
 
 - name: create fulcrum directories
   file:

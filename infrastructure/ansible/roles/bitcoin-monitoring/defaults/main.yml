@@ -1,0 +1,9 @@
+---
+otel_col_version: "0.127.0"
+otel_col_package: "otelcol_{{ otel_col_version }}_linux_amd64.deb"
+otel_col_url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otel_col_version }}/{{ otel_col_package }}"
+repo_url: https://github.com/jvstein/bitcoin-prometheus-exporter.git
+repo_dir: /home/bitcoin/bitcoin-prometheus-exporter
+venv_dir: /home/bitcoin/bitcoin-prometheus-exporter/venv
+lnd_prometheus_port: 9833
+monitor_systemd_services: "bitcoin fulcrum lnd albyhub backup-lnd-channels tor"

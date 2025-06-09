@@ -56,7 +56,7 @@ localhost:22026 {
 
 	@audiobookshelf host audiobookshelf.{{ caddy_domain }}
 	handle @audiobookshelf {
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:2008
+		reverse_proxy http://{{ server4 }}:2008
 	}
 
 	@gitea host gitea.{{ caddy_domain }}

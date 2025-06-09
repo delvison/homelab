@@ -1,5 +1,7 @@
 extensions:
   health_check: {}
+  bearertokenauth:
+    token: ${env:OTEL_AUTH_TOKEN}
 receivers:
   # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver
   hostmetrics:
@@ -21,6 +23,10 @@ receivers:
     protocols:
       http:
         endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: bearertokenauth
+          
+
   httpcheck:
     targets:
       - endpoint: http://grafana:3000/healthz
@@ -77,11 +83,12 @@ service:
   telemetry:
     metrics:
       address: localhost:8888
+  extensions: [bearertokenauth]
   pipelines:
     metrics:
       receivers: [otlp, httpcheck]
       processors: [attributes,batch]
-      exporters: [debug,otlp/telegraf,prometheus]
+      exporters: [prometheus]
     metrics/self-monitoring:
       receivers: [prometheus/self-monitoring,hostmetrics,hostmetrics/disk]
       processors: [attributes/self-monitoring,batch]

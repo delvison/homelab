@@ -1,0 +1,21 @@
+- name: reload systemd
+  command: systemctl daemon-reload
+
+- name: restart bitcoin-prometheus-exporter
+  systemd:
+    name: bitcoin-prometheus-exporter
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+
+- name: restart otelcol
+  systemd:
+    name: otelcol
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+
+- name: restart metrics-collect-1m service
+  systemd:
+    name: metrics-collect-1m
+    state: restarted

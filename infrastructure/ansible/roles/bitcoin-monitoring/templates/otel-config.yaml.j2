@@ -1,0 +1,66 @@
+---
+extensions:
+  health_check: {}
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4318
+  prometheus/bitcoin:
+    config:
+      scrape_configs:
+      - job_name: 'bitcoin-prometheus-exporter'
+        scrape_interval: 30s
+        static_configs:
+        - targets: ['127.0.0.1:9332']
+  prometheus/lnd:
+    config:
+      scrape_configs:
+      - job_name: 'lnd-prometheus-exporter'
+        scrape_interval: 30s
+        static_configs:
+        - targets: ['127.0.0.1:{{ lnd_prometheus_port }}']
+  hostmetrics:
+    collection_interval: 1m
+    scrapers:
+      network:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+      system:
+
+processors:
+  attributes:
+    actions:
+      - key: host_name
+        action: insert
+        value: {{ ansible_hostname }}
+      - key: service
+        from_attribute: service.name
+        action: upsert
+      - key: service_name
+        from_attribute: service.name
+        action: upsert
+  batch:
+
+exporters:
+  # SOURCE: https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md
+  otlphttp:
+    endpoint: {{ OTLP_ENDPOINT }}
+    headers:
+      Authorization: "Bearer {{ OTEL_AUTH_TOKEN }}"
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp,prometheus/bitcoin,prometheus/lnd,hostmetrics]
+      processors: [attributes,batch]
+      exporters: [otlphttp]

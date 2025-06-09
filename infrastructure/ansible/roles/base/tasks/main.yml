@@ -101,16 +101,18 @@
   when: ansible_os_family == "RedHat"
 
 - name: Configure SSH jail
-  lineinfile:
+  blockinfile:
     path: /etc/fail2ban/jail.conf
-    regexp: "^[# ]*ssh"
-    line: "[ssh]
-    port = ssh
-    filter = ssh
-    logpath = /var/log/auth.log
-    maxretry = 3
-    bantime = 600"
-    state: present
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    block: |
+      [sshd]
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+      bantime = 600
+    insertafter: "[sshd]"
+  notify: restart fail2ban
   when: ansible_os_family == "Debian"
 
 - name: Configure SSH jail
@@ -126,3 +128,8 @@
   notify: restart fail2ban
   when: ansible_os_family == "RedHat"
 
+- name: Install qemu-guest-agent on VM hosts
+  package:
+    name: qemu-guest-agent
+    state: present
+  when: "'vm' in group_names"

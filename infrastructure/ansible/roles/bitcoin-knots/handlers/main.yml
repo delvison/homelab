@@ -4,6 +4,8 @@
 - name: restart bitcoin
   systemd:
     name: bitcoin
+    daemon_reload: yes
+    enabled: yes
     state: restarted
 
 - name: restart tor

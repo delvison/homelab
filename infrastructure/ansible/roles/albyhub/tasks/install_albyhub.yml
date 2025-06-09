@@ -1,40 +1,29 @@
-# knots_version = 28.1.knots20250305
 ---
-- name: Set albyhub_url
-  set_fact:
-    albyhub_url: "https://getalby.com/install/hub/server-linux-x86_64.tar.bz2"
-    albyhub_port: 7085
-
 - name: Download AlbyHub
-  command: curl -s -L -o /tmp/albyhub/server-linux-x86_64.tar.bz2 {{ albyhub_url }}
+  command: "curl -s -L -o {{ albyhub_dl_dir }}/{{ albyhub_pkg }} {{ albyhub_url }}"
   args:
-    creates: /tmp/albyhub/server-linux-x86_64.tar.bz2
+    creates: "{{ albyhub_dl_dir }}/server-linux-x86_64.tar.bz2"
 
 - name: Extract AlbyHub
   unarchive:
-    src: /tmp/albyhub/server-linux-x86_64.tar.bz2
-    dest: /tmp/albyhub
+    src: "{{ albyhub_dl_dir }}/server-linux-x86_64.tar.bz2"
+    dest: "{{ albyhub_dl_dir }}"
     remote_src: yes
     mode: '0755'
 
 - name: Move AlbyHub binary
   copy:
-    src: "/tmp/albyhub/bin/albyhub"
+    src: "{{ albyhub_dl_dir }}/bin/albyhub"
     dest: "/usr/local/bin/albyhub"
     remote_src: yes
     mode: '0755'
 
 - name: Move LDK library
   copy:
-    src: "/tmp/albyhub/lib/libldk_node.so"
+    src: "{{ albyhub_dl_dir }}/lib/libldk_node.so"
     dest: "/usr/local/lib/libldk_node.so"
     remote_src: yes
     mode: '0644'
-
-- name: Remove extracted directory
-  file:
-    path: "/tmp/albyhub"
-    state: absent
 
 - name: create systemd unit file
   template:
@@ -43,4 +32,5 @@
     mode: '0644'
   notify: 
     - reload systemd
-    - restart albyhub
+    - start albyhub
+    # - cleanup albyhub

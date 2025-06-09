@@ -1,0 +1,2 @@
+fulcrum_version: "1.11.1"
+fulcrum_version_id: "Fulcrum-{{ fulcrum_version }}-x86_64-linux"

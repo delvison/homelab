@@ -4,11 +4,15 @@
 - name: restart bitcoin
   systemd:
     name: bitcoin
+    daemon_reload: yes
+    enabled: yes
     state: restarted
 
 - name: restart fulcrum
   systemd:
     name: fulcrum
+    daemon_reload: yes
+    enabled: yes
     state: restarted
 
 - name: restart tor
