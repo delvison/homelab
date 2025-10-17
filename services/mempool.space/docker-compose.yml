@@ -17,7 +17,7 @@ services:
       BACKEND_MAINNET_HTTP_HOST: "api"
     image: mempool/frontend:latest
     user: "1000:1000"
-    restart: on-failure
+    restart: always
     stop_grace_period: 1m
     command: "./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'"
     ports:
@@ -54,7 +54,7 @@ services:
       STATISTICS_ENABLED: "true"
     image: mempool/backend:latest
     # user: "1002:${GID}"
-    restart: on-failure
+    restart: always
     stop_grace_period: 1m
     command: "./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh"
     volumes:
