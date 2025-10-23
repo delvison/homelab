@@ -13,5 +13,8 @@ set-context:
 deploy: set-context yeet-files
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
 
+update: set-context
+  docker compose pull
+
 logs:
   docker compose logs -f
