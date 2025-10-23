@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: caddy.dockerfile
+      args:
+        - CADDY_VERSION=${CADDY_VERSION:-2.10.0}
     restart: unless-stopped
     ports:
       - "80:80"
@@ -135,6 +137,12 @@ services:
           handle @uptime-kuma {
             cache
             reverse_proxy http://uptime-kuma.homelab.local.${DOMAIN}
+          }
+
+          @cp host cp.local.${DOMAIN}
+          handle @cp {
+            cache
+            reverse_proxy ${NAS}:3923
           }
 
           @test host test.local.${DOMAIN}

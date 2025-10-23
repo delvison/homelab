@@ -1,5 +1,7 @@
+ARG CADDY_VERSION
+
 # https://hub.docker.com/_/caddy
-FROM caddy:2.10.0-builder AS builder
+FROM caddy:${CADDY_VERSION}-builder AS builder
 
 RUN xcaddy build \
 	  --with github.com/caddyserver/certmagic \
@@ -9,6 +11,6 @@ RUN xcaddy build \
     --with github.com/darkweak/storages/otter/caddy
 
 # https://github.com/caddyserver/caddy/releases/
-FROM caddy:2.10.0
+FROM caddy:${CADDY_VERSION}
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
