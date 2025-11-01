@@ -10,6 +10,8 @@ services:
         limits:
           cpus: '0.02'
           memory: 128M
+    security_opt:
+      - no-new-privileges:true
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
@@ -103,6 +105,8 @@ services:
         condition: service_healthy
     networks:
       - internal-monitoring
+    dns:
+      - ${DNS_SERVER}
 
 volumes:
   gatus-postgres-vol:
