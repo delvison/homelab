@@ -145,6 +145,12 @@ services:
             reverse_proxy ${NAS}:3923
           }
 
+          @music host music.local.${DOMAIN}
+          handle @music {
+            cache
+            reverse_proxy ${SERVER}:4553
+          }
+
           @test host test.local.${DOMAIN}
           handle @test {
             respond "hello world"
