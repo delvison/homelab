@@ -15,7 +15,7 @@ services:
     environment:
       FRONTEND_HTTP_PORT: "8050"
       BACKEND_MAINNET_HTTP_HOST: "api"
-    image: mempool/frontend:latest
+    image: mempool/frontend:${MEMPOOL_FRONTEND_VERSION:-latest}
     user: "1000:1000"
     restart: always
     stop_grace_period: 1m
@@ -52,7 +52,7 @@ services:
       DATABASE_USERNAME: "${DATABASE_USERNAME}"
       DATABASE_PASSWORD: "${DATABASE_PASSWORD}"
       STATISTICS_ENABLED: "true"
-    image: mempool/backend:latest
+    image: mempool/backend:${MEMPOOL_BACKEND_VERSION:-latest}
     # user: "1002:${GID}"
     restart: always
     stop_grace_period: 1m
