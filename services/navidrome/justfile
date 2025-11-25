@@ -8,4 +8,5 @@ set-context:
   @docker context use {{deploy_host}}
 
 deploy: set-context
+  docker compose pull
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate

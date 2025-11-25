@@ -10,7 +10,9 @@ services:
       - "4553:80"
     restart: unless-stopped
     environment:
-      ND_SCANSCHEDULE: 1h
+      ND_SCANNER_ENABLED: true
+      ND_SCANSCHEDULE: "0 */2 * * *"
+      ND_SCANNER_PURGEMISSING: "always"
       ND_LOGLEVEL: info  
       ND_SESSIONTIMEOUT: 24h
       ND_BASEURL: ""
