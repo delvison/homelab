@@ -1,13 +1,34 @@
 repos:
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.21.1
+    rev: v8.30.0
     hooks:
       - id: gitleaks
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1-beta
+    rev: v2.14.0
     hooks:
       - id: hadolint
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0  
+    rev: v6.0.0  
     hooks:
       - id: check-yaml
+  -   repo: https://github.com/koalaman/shellcheck-precommit
+      rev: v0.11.0
+      hooks:
+      -   id: shellcheck
+  #       args: ["--severity=warning"]  # Optionally only show errors and warnings
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.46.0
+    hooks:
+      - id: markdownlint
+  - repo: https://github.com/kamadorueda/alejandra
+    rev: 4.0.0
+    hooks:
+      - id: alejandra-nix
+  - repo: https://github.com/docker-compose-linter/pre-commit-dclint
+    rev: v3.0.0 
+    hooks:
+      - id: dclint
+        # Optional: regex override for compose files
+        files: ^(docker-)?compose\.ya?ml$
+        # Optional: enable autofix on commit
+        args: [ --fix ]
