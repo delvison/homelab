@@ -30,6 +30,9 @@ services:
         {
           email "${CF_API_EMAIL}"
           cache
+          log {
+            level debug
+          }
         }
         *.local.${DOMAIN} {
           tls {
@@ -69,6 +72,11 @@ services:
           handle @gatus {
             cache
             reverse_proxy ${SERVER}:8076
+          }
+
+          @fulcrum host fulcrum.local.${DOMAIN}
+          handle @fulcrum {
+            reverse_proxy ${SERVER}:50002
           }
 
           @grafana host grafana.local.${DOMAIN}
@@ -125,6 +133,7 @@ services:
                 tls
                 tls_insecure_skip_verify
               }
+            }
           }
 
           @search host search.local.${DOMAIN}
@@ -151,14 +160,76 @@ services:
             reverse_proxy ${SERVER}:4553
           }
 
+          @mempool host mempool.local.${DOMAIN}
+          handle @mempool {
+            cache
+            reverse_proxy ${SERVER}:8050
+          }
+
           @test host test.local.${DOMAIN}
           handle @test {
             respond "hello world"
           }
+
+          @joplin host joplin.local.${DOMAIN}
+          handle @joplin {
+            reverse_proxy ${SERVER4}:22300
+          }
+
+          @ollama host ollama.local.${DOMAIN}
+          handle @ollama {
+            handle @token {
+              reverse_proxy ${SERVER}:11434
+            }
+            respond "Unauthorized" 401
+          }
+
+          @token {
+            header Authorization "Bearer ${TOKEN}"
+          }
+
+          @cachenixos host cachenixos.local.${DOMAIN}
+          handle @cachenixos {
+            cache {
+                ttl 90d
+            }
+            reverse_proxy https://cache.nixos.org {
+              header_up Host {upstream_hostport}
+              header_up X-Forwarded-Host {upstream_hostport}
+            }
+          }
+
+          # default
+          respond "No page found" 404
         }
         EOF
         caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
  
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      # DNS Ports
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Default HTTP Port
+      - "8080:80/tcp"
+      # Default HTTPs Port. FTL will generate a self-signed certificate
+      - "4443:443/tcp"
+    environment:
+      # Set the appropriate timezone for your location from
+      # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g:
+      TZ: '${TZ}'
+      # Set a password to access the web interface. Not setting one will result in a random password being assigned
+      FTLCONF_webserver_api_password: '${PIHOLE_PASSWORD}'
+      # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
+      FTLCONF_dns_listeningMode: 'ALL'
+    # Volumes store your data between container upgrades
+    volumes:
+      # For persisting Pi-hole's databases and common configuration file
+      - 'pihole_config:/etc/pihole'
+    restart: unless-stopped
 volumes:
   caddy_data:
   caddy_config:
+  pihole_config:
