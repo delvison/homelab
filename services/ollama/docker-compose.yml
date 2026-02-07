@@ -1,0 +1,47 @@
+---
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - "${BASE_DIR:-.}/ollama:/root/.ollama"
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro 
+    restart: unless-stopped
+    networks:
+      - ai
+    devices:
+      # kfd and dri device access needed for AMDGPU ROCm support to work
+      # - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # openwebui:
+  #   image: ghcr.io/open-webui/open-webui:main
+  #   container_name: openwebui
+  #   ports:
+  #     - "127.0.0.1:5000:8080"
+  #   environment:
+  #     - 'OLLAMA_BASE_URL=http://ollama:11434/'
+  #     - 'WEBUI_SECRET_KEY='
+  #   volumes:
+  #     - openwebui-data:/app/backend/data
+  #   depends_on:
+  #     - ollama
+  #   restart: always
+  #   extra_hosts:
+  #     - host.docker.internal:host-gateway
+  #   networks:
+  #     - ai
+
+# volumes:
+#   openwebui-data:
+networks:
+  ai:
