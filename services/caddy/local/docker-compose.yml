@@ -41,19 +41,30 @@ services:
                   resolvers 1.1.1.1 1.0.0.1
               }
           }
+          @nextcloud host nextcloud.local.${DOMAIN}
+          handle @nextcloud {
+            cache
+            reverse_proxy ${SERVER}:18600 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
+          }
+
+          @code host code.local.${DOMAIN}
+          handle @code {
+            cache
+            reverse_proxy ${SERVER}:2000 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
+          }
 
           @audiobookshelf host audiobookshelf.local.${DOMAIN}
           handle @audiobookshelf {
             cache
             reverse_proxy ${SERVER}:2008
-          }
-
-          @authentik host authentik.local.${DOMAIN}
-          handle @authentik {
-            cache
-            reverse_proxy ${SERVER3}:9000 {
-              header_up Host {http.reverse_proxy.upstream.hostport}
-            }
           }
 
           @btcexplorer host btcexplorer.local.${DOMAIN}
@@ -62,16 +73,14 @@ services:
             reverse_proxy ${SERVER3}:3002
           }
 
-          @cryptpad host cryptpad.local.${DOMAIN}
-          handle @cryptpad {
-            cache
-            reverse_proxy ${SERVER3}:3128
-          }
-
           @gatus host gatus.local.${DOMAIN}
           handle @gatus {
             cache
-            reverse_proxy ${SERVER}:8076
+            reverse_proxy ${SERVER}:8076 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           }
 
           @fulcrum host fulcrum.local.${DOMAIN}
@@ -82,7 +91,11 @@ services:
           @grafana host grafana.local.${DOMAIN}
           handle @grafana {
             cache
-            reverse_proxy ${SERVER5}:3000
+            reverse_proxy ${SERVER5}:3000 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           }
 
           @influxdb host influxdb.local.${DOMAIN}
@@ -94,18 +107,30 @@ services:
           @otel host otel.local.${DOMAIN}
           handle @otel {
             cache
-            reverse_proxy ${SERVER5}:4318
+            reverse_proxy ${SERVER5}:4318 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           }
 
           @jellyfin host jellyfin.local.${DOMAIN}
           handle @jellyfin {
             cache
-            reverse_proxy ${NAS}:8096
+            reverse_proxy ${NAS}:8096 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           }
 
           @navidrome host navidrome.local.${DOMAIN}
           handle @navidrome {
-            reverse_proxy ${SERVER3}:4553
+            reverse_proxy ${SERVER3}:4553 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           }
 
           @nas host nas.local.${DOMAIN}
@@ -139,7 +164,11 @@ services:
           @search host search.local.${DOMAIN}
           handle @search {
             cache
-            reverse_proxy ${SERVER}:6080
+            reverse_proxy ${SERVER}:6080 {
+              header_up X-Forwarded-Port {http.request.port}
+              header_up X-Real-IP {http.request.remote.host}
+              header_up Connection "close"
+            }
           }
 
           @uptime-kuma host uptime-kuma.local.${DOMAIN}
@@ -173,13 +202,22 @@ services:
 
           @joplin host joplin.local.${DOMAIN}
           handle @joplin {
-            reverse_proxy ${SERVER4}:22300
+            reverse_proxy ${SERVER4}:22300 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              header_up Host joplin.${DOMAIN}
+            }
           }
 
           @ollama host ollama.local.${DOMAIN}
           handle @ollama {
             handle @token {
-              reverse_proxy ${SERVER}:11434
+              reverse_proxy ${SERVER}:11434 {
+                header_up X-Forwarded-For {remote_host}
+                header_up X-Real-IP {remote_host}
+                header_up X-Forwarded-Proto {scheme}
+              }
             }
             respond "Unauthorized" 401
           }
