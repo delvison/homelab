@@ -1,0 +1,94 @@
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'caddy'
+          static_configs:
+            - targets: ['caddy:2019']
+          metrics_path: /metrics
+          scrape_interval: 15s
+  
+  filelog:
+    include: [/var/log/caddy/access.log]
+    start_at: end
+    operators:
+      - type: json_parser
+        on_error: drop
+      - type: filter
+        expr: 'attributes.request == nil or attributes.request.tls == nil or attributes.request.tls.server_name == nil'
+      - type: move
+        from: attributes.request.tls.server_name
+        to: attributes["server_name"]
+      - type: move
+        from: attributes.request.uri
+        to: attributes["uri"]
+      - type: move
+        from: attributes.request.remote_ip
+        to: attributes["remote_ip"]
+      - type: move
+        from: attributes.request.client_ip
+        to: attributes["client_ip"]
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  filter/scrape:
+    metrics:
+      metric:
+        - 'IsMatch(name, "scrape_.*")'
+  resource/environment:
+    attributes:
+      - key: environment
+        value: local
+        action: upsert
+
+connectors:
+  count:
+    logs:
+      caddy.http.requests:
+        description: Total HTTP requests from Caddy access logs
+        attributes:
+          - key: server_name
+            default_value: unknown
+          - key: uri
+            default_value: unknown
+          - key: remote_ip
+            default_value: unknown
+          - key: client_ip
+            default_value: unknown
+          - key: duration
+            default_value: unknown
+          - key: status 
+            default_value: unknown
+          - key: ts 
+            default_value: unknown
+          - key: environment
+            default_value: local
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp:
+    endpoint: ${env:OTLP_ENDPOINT}
+    headers:
+      Authorization: Bearer ${env:OTEL_AUTH_TOKEN}
+    tls:
+      insecure: false
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [filter/scrape,resource/environment,batch]
+      exporters: [otlphttp]
+    
+    logs:
+      receivers: [filelog]
+      processors: [batch]
+      exporters: [count]
+    
+    metrics/from_logs:
+      receivers: [count]
+      processors: [resource/environment,batch]
+      exporters: [otlphttp]

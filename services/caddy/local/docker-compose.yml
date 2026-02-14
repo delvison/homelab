@@ -7,13 +7,16 @@ services:
       dockerfile: caddy.dockerfile
       args:
         - CADDY_VERSION=${CADDY_VERSION:-2.10.0}
+    user: "1000:1000"
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
+      - "2019:2019"
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
     environment:
       CF_API_EMAIL: "${CF_API_EMAIL}"
       CF_API_KEY: "${CF_API_KEY}"
@@ -32,7 +35,11 @@ services:
           cache
           log {
             level debug
+            format json
+            output file /var/log/caddy/access.log
           }
+          metrics
+          admin 0.0.0.0:2019
         }
         *.local.${DOMAIN} {
           tls {
@@ -267,7 +274,37 @@ services:
       # For persisting Pi-hole's databases and common configuration file
       - 'pihole_config:/etc/pihole'
     restart: unless-stopped
+
+  otel-collector-client:
+    image: otel/opentelemetry-collector-contrib
+    user: "1000:1000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 256M
+    container_name: otel-collector
+    restart: always
+    command: [ "--config", "/config/config.yaml" ]
+    volumes:
+      - ${BASE_DIR:-}/otelcol/config.yaml:/config/config.yaml
+      - caddy_logs:/var/log/caddy:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
+    ports:
+      - 13133:13133 # health_check extension
+      - 4318:4318 # OTLP http receiver
+    environment:
+      HOST: ${HOST}
+      OTLP_ENDPOINT: ${OTLP_ENDPOINT}
+      OTEL_AUTH_TOKEN: ${OTEL_AUTH_TOKEN}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:
   pihole_config:
