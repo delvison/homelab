@@ -121,6 +121,12 @@ services:
             }
           }
 
+          @prom host prom.local.${DOMAIN}
+          handle @prom {
+            cache
+            reverse_proxy ${SERVER5}:9090
+          }
+
           @jellyfin host jellyfin.local.${DOMAIN}
           handle @jellyfin {
             cache

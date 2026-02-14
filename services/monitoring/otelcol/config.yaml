@@ -38,10 +38,10 @@ receivers:
     config:
       scrape_configs:
         # scrape internal metrics
-        - job_name: 'otel'
+        - job_name: 'otel-collector'
           scrape_interval: 10s
           static_configs:
-            - targets: ['127.0.0.1:8888']
+            - targets: ['0.0.0.0:8888']
 processors:
   attributes:
     actions:
@@ -80,9 +80,6 @@ exporters:
   debug:
     verbosity: detailed
 service:
-  telemetry:
-    metrics:
-      address: localhost:8888
   extensions: [bearertokenauth]
   pipelines:
     metrics:

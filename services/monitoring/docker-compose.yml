@@ -59,6 +59,7 @@ services:
         retries: 5
 
   # default creds: admin:admin
+  # Ref: https://grafana.com/docs/grafana/latest/setup-grafana/configure-docker/
   grafana:
     image: grafana/grafana-enterprise
     user: ${UID}:${GID}
@@ -66,6 +67,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${BASE_DIR:-.}/grafana/data:/var/lib/grafana
+      - ${BASE_DIR:-.}/grafana/grafana.ini:/etc/grafana/grafana.ini
     logging:
       driver: json-file
       options:
@@ -157,29 +159,89 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
+  prometheus-init:
+    image: alpine:3.19
+    container_name: prometheus-init
+    volumes:
+      - ${BASE_DIR:-.}/prometheus:/etc/prometheus:rw
+      - prometheus-tmp:/tmp
+    environment:
+      - PROMETHEUS_ADMIN_PASSWORD=${PROMETHEUS_ADMIN_PASSWORD:-changeme}
+      - PROMETHEUS_BOT_PASSWORD=${PROMETHEUS_BOT_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache apache2-utils > /dev/null 2>&1
+        HASH=$$(echo "$$PROMETHEUS_ADMIN_PASSWORD" | htpasswd -niBC 10 admin | cut -d: -f2 | tr -d '\n' | sed 's/\$$2y/\$$2a/')
+        cat > /etc/prometheus/web.yml << EOF
+        basic_auth_users:
+          admin: $$HASH
+        EOF
+        if [ -n "$$PROMETHEUS_BOT_PASSWORD" ]; then
+          BHASH=$$(echo "$$PROMETHEUS_BOT_PASSWORD" | htpasswd -niBC 10 bot | cut -d: -f2 | tr -d '\n' | sed 's/\$$2y/\$$2a/')
+          echo "  bot: $$BHASH" >> /etc/prometheus/web.yml
+        fi
+        cat >> /etc/prometheus/web.yml << EOF
+        http_server_config:
+          http2: true
+        EOF
+        echo "Generated web.yml successfully"
+    restart: "no"
+
   prometheus:
-    image: prom/prometheus:v2.21.0
+    image: prom/prometheus:v2.55.0
     container_name: prometheus
     ports:
-      - 9090:9090
+      - "9090:9090"
     volumes:
-      - ${BASE_DIR:-.}/prometheus:/etc/prometheus
+      - ${BASE_DIR:-.}/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
+      - prometheus-tmp:/tmp
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=4w'
+      - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'
+      - '--web.config.file=/etc/prometheus/web.yml'
+    depends_on:
+      otel-collector:
+        condition: service_started
+      prometheus-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: "wget --no-check-certificate -qO- http://localhost:9090/-/healthy || exit 1"
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    restart: unless-stopped
     logging:
       driver: json-file
       options:
         max-size: 512m
+        max-file: "5"
     networks:
       - monitoring
-    depends_on:
-      - otel-collector
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  # For Grafana to send emails
+  postfix:
+    image: boky/postfix@sha256:4b7e77349a09779b7fea281db2f113e66da69cdc362fbfb55fbc8c5716952d16
+    container_name: postfix
+    restart: unless-stopped
+    environment:
+      - "ALLOWED_SENDER_DOMAINS=grafana.localhost"
+    # ports:
+    #   - 1587:587
+    networks:
+      - monitoring
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
@@ -189,3 +251,4 @@ secrets:
 
 volumes:
   prometheus-data:
+  prometheus-tmp:
