@@ -1,0 +1,274 @@
+#!/bin/bash
+# Collect disk I/O metrics for VMs and containers for Prometheus textfile collector
+
+OUTPUT_FILE="{{ node_exporter_textfile_dir }}/disk_io.prom"
+TMP_FILE="${OUTPUT_FILE}.tmp"
+
+> "$TMP_FILE"
+
+# Add help and type annotations
+cat >> "$TMP_FILE" << 'EOF'
+# HELP pve_disk_io_read_bytes_total Total bytes read by VM/container
+# TYPE pve_disk_io_read_bytes_total counter
+# HELP pve_disk_io_write_bytes_total Total bytes written by VM/container
+# TYPE pve_disk_io_write_bytes_total counter
+# HELP pve_disk_io_read_operations_total Total read operations by VM/container
+# TYPE pve_disk_io_read_operations_total counter
+# HELP pve_disk_io_write_operations_total Total write operations by VM/container
+# TYPE pve_disk_io_write_operations_total counter
+# HELP pve_disk_io_read_bytes_rate_bytes_per_second Current read rate in bytes per second
+# TYPE pve_disk_io_read_bytes_rate_bytes_per_second gauge
+# HELP pve_disk_io_write_bytes_rate_bytes_per_second Current write rate in bytes per second
+# TYPE pve_disk_io_write_bytes_rate_bytes_per_second gauge
+# HELP pve_disk_io_collection_timestamp Unix timestamp of last collection
+# TYPE pve_disk_io_collection_timestamp gauge
+EOF
+
+# Function to get VM name from PID
+get_vm_name() {
+    local pid=$1
+    local vmid=""
+    local vmname=""
+    
+    # Try to get VMID from cmdline
+    if [ -f "/proc/$pid/cmdline" ]; then
+        cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+        # Look for -id or -name in qemu command line
+        vmid=$(echo "$cmdline" | grep -oE '\-id [0-9]+' | awk '{print $2}')
+        if [ -n "$vmid" ]; then
+            vmname=$(qm config "$vmid" 2>/dev/null | grep -E '^name:' | awk '{print $2}')
+            echo "${vmid}|${vmname:-vm-${vmid}}"
+            return
+        fi
+    fi
+    echo "||"
+}
+
+# Function to get container name from PID
+get_ct_name() {
+    local pid=$1
+    local vmid=""
+    local ctname=""
+    
+    # Try to get VMID from cgroup path
+    if [ -f "/proc/$pid/cgroup" ]; then
+        vmid=$(grep -oE 'lxc/[0-9]+' "/proc/$pid/cgroup" 2>/dev/null | head -1 | cut -d'/' -f2)
+        if [ -n "$vmid" ]; then
+            ctname=$(pct config "$vmid" 2>/dev/null | grep -E '^hostname:' | awk '{print $2}')
+            echo "${vmid}|${ctname:-ct-${vmid}}"
+            return
+        fi
+    fi
+    echo "||"
+}
+
+# Function to read I/O stats from /proc/PID/io
+read_io_stats() {
+    local pid=$1
+    local io_file="/proc/$pid/io"
+    
+    if [ -f "$io_file" ]; then
+        read_bytes=$(grep -E '^read_bytes:' "$io_file" 2>/dev/null | awk '{print $2}')
+        write_bytes=$(grep -E '^write_bytes:' "$io_file" 2>/dev/null | awk '{print $2}')
+        read_ops=$(grep -E '^syscr:' "$io_file" 2>/dev/null | awk '{print $2}')
+        write_ops=$(grep -E '^syscw:' "$io_file" 2>/dev/null | awk '{print $2}')
+        
+        echo "${read_bytes:-0}|${write_bytes:-0}|${read_ops:-0}|${write_ops:-0}"
+    else
+        echo "0|0|0|0"
+    fi
+}
+
+# Function to read previous stats for rate calculation
+read_prev_stats() {
+    local id=$1
+    local prev_file="/tmp/disk_io_prev_${id}.txt"
+    
+    if [ -f "$prev_file" ]; then
+        cat "$prev_file"
+    else
+        echo "0|0|0|0|0"
+    fi
+}
+
+# Function to save current stats for next iteration
+save_stats() {
+    local id=$1
+    local read_bytes=$2
+    local write_bytes=$3
+    local timestamp=$4
+    local prev_file="/tmp/disk_io_prev_${id}.txt"
+    
+    echo "${read_bytes}|${write_bytes}|${timestamp}" > "$prev_file"
+}
+
+# Collect KVM/QEMU VM disk I/O stats
+collect_vm_io() {
+    # Find all qemu-system-x86_64 processes
+    for pid_dir in /proc/[0-9]*; do
+        if [ -d "$pid_dir" ]; then
+            pid=$(basename "$pid_dir")
+            exe=$(readlink -f "$pid_dir/exe" 2>/dev/null)
+            
+            if [[ "$exe" == *"qemu-system"* ]]; then
+                vm_info=$(get_vm_name "$pid")
+                vmid=$(echo "$vm_info" | cut -d'|' -f1)
+                vmname=$(echo "$vm_info" | cut -d'|' -f2)
+                
+                if [ -n "$vmid" ]; then
+                    io_stats=$(read_io_stats "$pid")
+                    read_bytes=$(echo "$io_stats" | cut -d'|' -f1)
+                    write_bytes=$(echo "$io_stats" | cut -d'|' -f2)
+                    read_ops=$(echo "$io_stats" | cut -d'|' -f3)
+                    write_ops=$(echo "$io_stats" | cut -d'|' -f4)
+                    
+                    # Calculate rates
+                    prev_stats=$(read_prev_stats "vm_${vmid}")
+                    prev_read=$(echo "$prev_stats" | cut -d'|' -f1)
+                    prev_write=$(echo "$prev_stats" | cut -d'|' -f2)
+                    prev_time=$(echo "$prev_stats" | cut -d'|' -f3)
+                    current_time=$(date +%s)
+                    
+                    if [ "$prev_time" -gt 0 ]; then
+                        time_diff=$((current_time - prev_time))
+                        if [ "$time_diff" -gt 0 ]; then
+                            read_rate=$(( (read_bytes - prev_read) / time_diff ))
+                            write_rate=$(( (write_bytes - prev_write) / time_diff ))
+                            
+                            # Ensure non-negative rates
+                            [ "$read_rate" -lt 0 ] && read_rate=0
+                            [ "$write_rate" -lt 0 ] && write_rate=0
+                            
+                            echo "pve_disk_io_read_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${read_rate}" >> "$TMP_FILE"
+                            echo "pve_disk_io_write_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${write_rate}" >> "$TMP_FILE"
+                        fi
+                    fi
+                    
+                    save_stats "vm_${vmid}" "$read_bytes" "$write_bytes" "$current_time"
+                    
+                    echo "pve_disk_io_read_bytes_total{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${read_bytes}" >> "$TMP_FILE"
+                    echo "pve_disk_io_write_bytes_total{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${write_bytes}" >> "$TMP_FILE"
+                    echo "pve_disk_io_read_operations_total{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${read_ops}" >> "$TMP_FILE"
+                    echo "pve_disk_io_write_operations_total{vmid=\"${vmid}\",name=\"${vmname}\",type=\"qemu\"} ${write_ops}" >> "$TMP_FILE"
+                fi
+            fi
+        fi
+    done
+}
+
+# Collect LXC container disk I/O stats
+collect_lxc_io() {
+    # Find all lxc-start processes or processes in lxc cgroups
+    for pid_dir in /proc/[0-9]*; do
+        if [ -d "$pid_dir" ]; then
+            pid=$(basename "$pid_dir")
+            
+            ct_info=$(get_ct_name "$pid")
+            vmid=$(echo "$ct_info" | cut -d'|' -f1)
+            ctname=$(echo "$ct_info" | cut -d'|' -f2)
+            
+            if [ -n "$vmid" ]; then
+                io_stats=$(read_io_stats "$pid")
+                read_bytes=$(echo "$io_stats" | cut -d'|' -f1)
+                write_bytes=$(echo "$io_stats" | cut -d'|' -f2)
+                read_ops=$(echo "$io_stats" | cut -d'|' -f3)
+                write_ops=$(echo "$io_stats" | cut -d'|' -f4)
+                
+                # Calculate rates
+                prev_stats=$(read_prev_stats "lxc_${vmid}")
+                prev_read=$(echo "$prev_stats" | cut -d'|' -f1)
+                prev_write=$(echo "$prev_stats" | cut -d'|' -f2)
+                prev_time=$(echo "$prev_stats" | cut -d'|' -f3)
+                current_time=$(date +%s)
+                
+                if [ "$prev_time" -gt 0 ]; then
+                    time_diff=$((current_time - prev_time))
+                    if [ "$time_diff" -gt 0 ]; then
+                        read_rate=$(( (read_bytes - prev_read) / time_diff ))
+                        write_rate=$(( (write_bytes - prev_write) / time_diff ))
+                        
+                        [ "$read_rate" -lt 0 ] && read_rate=0
+                        [ "$write_rate" -lt 0 ] && write_rate=0
+                        
+                        echo "pve_disk_io_read_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${read_rate}" >> "$TMP_FILE"
+                        echo "pve_disk_io_write_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${write_rate}" >> "$TMP_FILE"
+                    fi
+                fi
+                
+                save_stats "lxc_${vmid}" "$read_bytes" "$write_bytes" "$current_time"
+                
+                echo "pve_disk_io_read_bytes_total{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${read_bytes}" >> "$TMP_FILE"
+                echo "pve_disk_io_write_bytes_total{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${write_bytes}" >> "$TMP_FILE"
+                echo "pve_disk_io_read_operations_total{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${read_ops}" >> "$TMP_FILE"
+                echo "pve_disk_io_write_operations_total{vmid=\"${vmid}\",name=\"${ctname}\",type=\"lxc\"} ${write_ops}" >> "$TMP_FILE"
+            fi
+        fi
+    done
+}
+
+# Alternative method: Use blkio cgroup stats for more accurate container I/O
+read_blkio_stats() {
+    # Check if we can read from cgroup blkio
+    if [ -d "/sys/fs/cgroup/blkio/lxc" ]; then
+        for ct_dir in /sys/fs/cgroup/blkio/lxc/*; do
+            if [ -d "$ct_dir" ]; then
+                vmid=$(basename "$ct_dir")
+                ctname=$(pct config "$vmid" 2>/dev/null | grep -E '^hostname:' | awk '{print $2}')
+                
+                # Read bytes
+                if [ -f "$ct_dir/blkio.throttle.io_service_bytes" ]; then
+                    read_bytes=$(grep -E 'Read' "$ct_dir/blkio.throttle.io_service_bytes" 2>/dev/null | awk '{sum+=$3} END {print sum}')
+                    write_bytes=$(grep -E 'Write' "$ct_dir/blkio.throttle.io_service_bytes" 2>/dev/null | awk '{sum+=$3} END {print sum}')
+                    
+                    if [ -n "$read_bytes" ] && [ -n "$write_bytes" ]; then
+                        # Calculate rates
+                        prev_stats=$(read_prev_stats "lxc_blkio_${vmid}")
+                        prev_read=$(echo "$prev_stats" | cut -d'|' -f1)
+                        prev_write=$(echo "$prev_stats" | cut -d'|' -f2)
+                        prev_time=$(echo "$prev_stats" | cut -d'|' -f3)
+                        current_time=$(date +%s)
+                        
+                        if [ "$prev_time" -gt 0 ]; then
+                            time_diff=$((current_time - prev_time))
+                            if [ "$time_diff" -gt 0 ]; then
+                                read_rate=$(( (read_bytes - prev_read) / time_diff ))
+                                write_rate=$(( (write_bytes - prev_write) / time_diff ))
+                                
+                                [ "$read_rate" -lt 0 ] && read_rate=0
+                                [ "$write_rate" -lt 0 ] && write_rate=0
+                                
+                                echo "pve_disk_io_read_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${read_rate}" >> "$TMP_FILE"
+                                echo "pve_disk_io_write_bytes_rate_bytes_per_second{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${write_rate}" >> "$TMP_FILE"
+                            fi
+                        fi
+                        
+                        save_stats "lxc_blkio_${vmid}" "$read_bytes" "$write_bytes" "$current_time"
+                        
+                        echo "pve_disk_io_read_bytes_total{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${read_bytes}" >> "$TMP_FILE"
+                        echo "pve_disk_io_write_bytes_total{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${write_bytes}" >> "$TMP_FILE"
+                    fi
+                fi
+                
+                # Read operations
+                if [ -f "$ct_dir/blkio.throttle.io_serviced" ]; then
+                    read_ops=$(grep -E 'Read' "$ct_dir/blkio.throttle.io_serviced" 2>/dev/null | awk '{sum+=$3} END {print sum}')
+                    write_ops=$(grep -E 'Write' "$ct_dir/blkio.throttle.io_serviced" 2>/dev/null | awk '{sum+=$3} END {print sum}')
+                    
+                    [ -n "$read_ops" ] && echo "pve_disk_io_read_operations_total{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${read_ops}" >> "$TMP_FILE"
+                    [ -n "$write_ops" ] && echo "pve_disk_io_write_operations_total{vmid=\"${vmid}\",name=\"${ctname:-ct-${vmid}}\",type=\"lxc\"} ${write_ops}" >> "$TMP_FILE"
+                fi
+            fi
+        done
+    fi
+}
+
+# Collect all I/O stats
+collect_vm_io
+collect_lxc_io
+read_blkio_stats
+
+# Add timestamp
+echo "pve_disk_io_collection_timestamp $(date +%s)" >> "$TMP_FILE"
+
+# Move to final location
+mv "$TMP_FILE" "$OUTPUT_FILE"

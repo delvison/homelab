@@ -12,3 +12,15 @@
     timeout: 10
   register: metric_response
   until: metric_response.status == 200
+
+- name: Restart fail2ban
+  become: yes
+  systemd:
+    name: fail2ban
+    state: restarted
+
+- name: Reload fail2ban
+  become: yes
+  systemd:
+    name: fail2ban
+    state: reloaded

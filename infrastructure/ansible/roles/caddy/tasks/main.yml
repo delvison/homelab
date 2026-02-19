@@ -1,3 +1,25 @@
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - unzip
+    state: present
+  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+- name: Create Caddy log directory
+  file:
+    path: /var/log/caddy
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: '0755'
+
+- name: Ensure Caddy logs are readable by fail2ban
+  file:
+    path: /var/log/caddy
+    mode: '0755'
+    recurse: yes
+
 - name: Download Caddy deb file
   get_url:
     url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_amd64.deb"
@@ -45,3 +67,34 @@
   notify:
     - Restart caddy
     - Validate caddy
+
+# Fail2ban configuration for Caddy protection
+- name: Ensure fail2ban is installed
+  apt:
+    name: fail2ban
+    state: present
+  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+- name: Deploy Caddy fail2ban filter
+  template:
+    src: templates/caddy-filter.conf.j2
+    dest: /etc/fail2ban/filter.d/caddy.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload fail2ban
+
+- name: Deploy Caddy fail2ban jail
+  template:
+    src: templates/caddy-jail.conf.j2
+    dest: /etc/fail2ban/jail.d/caddy.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart fail2ban
+
+- name: Ensure fail2ban is enabled and running
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes

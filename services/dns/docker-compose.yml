@@ -20,9 +20,12 @@ services:
         - '${BIND9_PORT:-53}:53/tcp'
         - '${BIND9_PORT:-53}:53/udp'
       volumes:
-        - ${BASE_DIR:-.}/bind9/config:/etc/bind
-        - ${BASE_DIR:-.}/bind9/cache:/var/cache/bind
+        - ${BASE_DIR:-.}/bind9/config:/etc/bind:ro
         - ${BASE_DIR:-.}/bind9/records:/var/lib/bind
+        - type: tmpfs
+          target: /var/cache/bind
+          tmpfs:
+            size: 100M
       restart: always
       depends_on:
         unbound:
@@ -40,5 +43,9 @@ services:
         - '${UNBOUND_PORT:-853}:53/tcp'
         - '${UNBOUND_PORT:-853}:53/udp'
       volumes:
-        - ${BASE_DIR:-.}/unbound/config/unbound.conf:/opt/unbound/etc/unbound/unbound.conf
+        - ${BASE_DIR:-.}/unbound/config/unbound.conf:/opt/unbound/etc/unbound/unbound.conf:ro
+        - type: tmpfs
+          target: /opt/unbound/etc/unbound/dev
+          tmpfs:
+            size: 10M
       restart: always

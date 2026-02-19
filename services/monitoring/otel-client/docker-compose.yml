@@ -1,0 +1,90 @@
+networks:
+  monitoring:
+services:
+  otel-collector-client-config:
+    image: busybox
+    volumes:
+      - otelcol-config:/config
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat <<EOF > ./config/config.yaml
+        ---
+        extensions:
+          health_check: {}
+
+        receivers:
+          otlp:
+            protocols:
+              http:
+                endpoint: 0.0.0.0:4318
+          hostmetrics:
+            collection_interval: 1m
+            scrapers:
+              cpu:
+              memory:
+
+        processors:
+          attributes:
+            actions:
+              - key: host_name
+                action: insert
+                value: ${HOST}
+              - key: service
+                from_attribute: service.name
+                action: upsert
+              - key: service_name
+                from_attribute: service.name
+                action: upsert
+          batch:
+            send_batch_size: 20000
+            timeout: 10s
+
+        exporters:
+          debug:
+          # SOURCE: https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md
+          otlphttp:
+            endpoint: ${OTLPHTTP_ENDPOINT} 
+            headers:
+              Authorization: "Bearer ${OTEL_AUTH_TOKEN}"
+        service:
+          pipelines:
+            metrics:
+              receivers: [otlp,hostmetrics]
+              processors: [attributes,batch]
+              exporters: [debug,otlphttp]
+        EOF
+        tail -f /config/config.yaml
+
+  otel-collector-client:
+    image: otel/opentelemetry-collector-contrib
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 256M
+    container_name: otel-collector-client
+    restart: always
+    command: [ "--config", "/config/config.yaml" ]
+    volumes:
+      - otelcol-config:/config
+      - /proc:/hostfs/proc
+    logging:
+      driver: json-file
+      options:
+        max-size: 512m
+    ports:
+      - 13133:13133 # health_check extension
+      - 4318:4318 # OTLP http receiver
+    environment:
+      HOST: ${HOST}
+      OTEL_AUTH_TOKEN: ${OTEL_AUTH_TOKEN}
+      OTLPHTTP_ENDPOINT: ${OTLPHTTP_ENDPOINT}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    depends_on:
+      - otel-collector-client-config
+
+volumes:
+  otelcol-config:

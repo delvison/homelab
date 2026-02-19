@@ -1,0 +1,51 @@
+# Fail2ban jail configuration for Caddy web server
+# Protects against web-based attacks
+
+[caddy-scan]
+# Blocks IP addresses scanning for vulnerabilities (404 errors)
+# Triggers on 5+ 404 responses in 60 seconds
+enabled = true
+filter = caddy
+logpath = /var/log/caddy/*.access.log
+maxretry = 5
+findtime = 60
+bantime = 600
+port = http,https
+backend = systemd
+
+[caddy-attack]
+# Blocks IP addresses hitting protected resources (403 errors)
+# or triggering rate limits (429 errors)
+# Triggers on 3+ 403/429 responses in 60 seconds
+enabled = true
+filter = caddy
+logpath = /var/log/caddy/*.access.log
+maxretry = 3
+findtime = 60
+bantime = 3600
+port = http,https
+backend = systemd
+
+[caddy-invalid]
+# Blocks IP addresses scanning invalid hosts/virtual hosts
+# Catches random domain scanning
+enabled = true
+filter = caddy
+logpath = /var/log/caddy/*.access.log
+maxretry = 5
+findtime = 60
+bantime = 600
+port = http,https
+backend = systemd
+
+[caddy-aggressive]
+# Extra aggressive protection combining all indicators
+# For persistent attackers that trigger multiple jails
+enabled = true
+filter = caddy
+logpath = /var/log/caddy/*.access.log
+maxretry = 10
+findtime = 300
+bantime = 86400
+port = http,https
+backend = systemd

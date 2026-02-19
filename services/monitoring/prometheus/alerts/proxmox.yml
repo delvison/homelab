@@ -1,0 +1,102 @@
+groups:
+  - name: proxmox
+    interval: 30s
+    rules:
+      - alert: NVMeHighTemperature
+        expr: nvme_smart_temperature_sensor_celsius > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} critical temperature"
+          description: "Sensor {{ $labels.sensor }} at {{ $value | printf \"%.0f\" }}°C on {{ $labels.model }}"
+
+      - alert: NVMeWarningTemperature
+        expr: nvme_smart_temperature_sensor_celsius > 75
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe {{ $labels.device }} high temperature"
+          description: "Sensor {{ $labels.sensor }} at {{ $value | printf \"%.0f\" }}°C on {{ $labels.model }}"
+
+      - alert: CPUHighTemperature
+        expr: cpu_temperature_celsius > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU sensor {{ $labels.sensor }} critical temperature"
+          description: "CPU temperature at {{ $value | printf \"%.0f\" }}°C"
+
+      - alert: CPUWarningTemperature
+        expr: cpu_temperature_celsius > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU sensor {{ $labels.sensor }} high temperature"
+          description: "CPU temperature at {{ $value | printf \"%.0f\" }}°C"
+
+      - alert: NVMeLowSpare
+        expr: nvme_smart_available_spare < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} low spare capacity"
+          description: "Available spare: {{ $value | printf \"%.0f\" }}% on {{ $labels.model }}"
+
+      - alert: NVMeWarningSpare
+        expr: nvme_smart_available_spare < 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe {{ $labels.device }} low spare warning"
+          description: "Available spare: {{ $value | printf \"%.0f\" }}% on {{ $labels.model }}"
+
+      - alert: NVMeHighUsage
+        expr: nvme_smart_percentage_used > 95
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe {{ $labels.device }} heavily used"
+          description: "Percentage used: {{ $value | printf \"%.0f\" }}% on {{ $labels.model }}"
+
+      - alert: NVMeUnsafeShutdowns
+        expr: nvme_smart_unsafe_shutdowns > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe {{ $labels.device }} unsafe shutdowns"
+          description: "{{ $value | printf \"%.0f\" }} unsafe shutdowns on {{ $labels.model }}"
+
+      - alert: NVMeCriticalUnsafeShutdowns
+        expr: nvme_smart_unsafe_shutdowns > 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} many unsafe shutdowns"
+          description: "{{ $value | printf \"%.0f\" }} unsafe shutdowns on {{ $labels.model }}"
+
+      - alert: NVMeMediaErrors
+        expr: nvme_smart_media_errors > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} media errors"
+          description: "{{ $value | printf \"%.0f\" }} media errors on {{ $labels.model }}"
+
+      - alert: NVMECriticalWarning
+        expr: nvme_smart_critical_warning > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe {{ $labels.device }} critical warning"
+          description: "Critical warning flag: {{ $value | printf \"%.0f\" }} on {{ $labels.model }}"

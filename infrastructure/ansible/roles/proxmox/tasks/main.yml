@@ -1,0 +1,196 @@
+---
+- name: Install prometheus-node-exporter
+  apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: yes
+  when: proxmox_node_exporter_install_method | default('package') == 'package'
+
+- name: Install nvme-cli
+  apt:
+    name: nvme-cli
+    state: present
+
+- name: Create textfile collector directory
+  file:
+    path: "{{ node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install NVMe metrics collection script
+  template:
+    src: collect-nvme-metrics.sh.j2
+    dest: /usr/local/bin/collect-nvme-metrics.sh
+    mode: '0755'
+
+- name: Create systemd service for NVMe metrics collection
+  template:
+    src: nvme-metrics.service.j2
+    dest: /etc/systemd/system/nvme-metrics.service
+  notify: reload systemd
+
+- name: Create systemd timer for NVMe metrics collection
+  template:
+    src: nvme-metrics.timer.j2
+    dest: /etc/systemd/system/nvme-metrics.timer
+  notify:
+    - reload systemd
+    - restart nvme-metrics timer
+
+- name: Enable and start NVMe metrics timer
+  systemd:
+    name: nvme-metrics.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: not ansible_check_mode
+
+- name: Run NVMe metrics collection once immediately
+  command: /usr/local/bin/collect-nvme-metrics.sh
+  ignore_errors: yes
+
+- name: Install lm-sensors for temperature monitoring
+  apt:
+    name: lm-sensors
+    state: present
+
+- name: Install temperature metrics collection script
+  template:
+    src: collect-temperature-metrics.sh.j2
+    dest: /usr/local/bin/collect-temperature-metrics.sh
+    mode: '0755'
+
+- name: Create systemd service for temperature metrics collection
+  template:
+    src: temperature-metrics.service.j2
+    dest: /etc/systemd/system/temperature-metrics.service
+  notify: reload systemd
+
+- name: Create systemd timer for temperature metrics collection
+  template:
+    src: temperature-metrics.timer.j2
+    dest: /etc/systemd/system/temperature-metrics.timer
+  notify:
+    - reload systemd
+    - restart temperature-metrics timer
+
+- name: Enable and start temperature metrics timer
+  systemd:
+    name: temperature-metrics.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: not ansible_check_mode
+
+- name: Run temperature metrics collection once immediately
+  command: /usr/local/bin/collect-temperature-metrics.sh
+  ignore_errors: yes
+
+- name: Install disk I/O metrics collection script
+  template:
+    src: collect-disk-io-metrics.sh.j2
+    dest: /usr/local/bin/collect-disk-io-metrics.sh
+    mode: '0755'
+
+- name: Create systemd service for disk I/O metrics collection
+  template:
+    src: disk-io-metrics.service.j2
+    dest: /etc/systemd/system/disk-io-metrics.service
+  notify: reload systemd
+
+- name: Create systemd timer for disk I/O metrics collection
+  template:
+    src: disk-io-metrics.timer.j2
+    dest: /etc/systemd/system/disk-io-metrics.timer
+  notify:
+    - reload systemd
+    - restart disk-io-metrics timer
+
+- name: Enable and start disk I/O metrics timer
+  systemd:
+    name: disk-io-metrics.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: not ansible_check_mode
+
+- name: Run disk I/O metrics collection once immediately
+  command: /usr/local/bin/collect-disk-io-metrics.sh
+  ignore_errors: yes
+
+- name: Create node-exporter user
+  user:
+    name: "{{ node_exporter_user }}"
+    system: yes
+    shell: /usr/sbin/nologin
+  when: proxmox_node_exporter_install_method | default('package') == 'binary'
+
+- name: Download node exporter binary
+  get_url:
+    url: "{{ node_exporter_url }}"
+    dest: "/tmp/{{ node_exporter_tarball }}"
+    mode: '0644'
+  when: proxmox_node_exporter_install_method | default('package') == 'binary'
+
+- name: Extract node exporter
+  unarchive:
+    src: "/tmp/{{ node_exporter_tarball }}"
+    dest: "/tmp"
+    remote_src: yes
+  when: proxmox_node_exporter_install_method | default('package') == 'binary'
+
+- name: Install node exporter binary
+  copy:
+    src: "/tmp/{{ node_exporter_package }}/node_exporter"
+    dest: "{{ node_exporter_install_dir }}/node_exporter"
+    mode: '0755'
+    remote_src: yes
+  when: proxmox_node_exporter_install_method | default('package') == 'binary'
+  notify: restart node-exporter
+
+- name: Create systemd service file
+  template:
+    src: node-exporter.service.j2
+    dest: /etc/systemd/system/node-exporter.service
+  when: proxmox_node_exporter_install_method | default('package') == 'binary'
+  notify:
+    - reload systemd
+    - restart node-exporter
+
+- name: Create systemd override directory for prometheus-node-exporter
+  file:
+    path: /etc/systemd/system/prometheus-node-exporter.service.d
+    state: directory
+    mode: '0755'
+  when: proxmox_node_exporter_install_method | default('package') == 'package'
+
+- name: Configure prometheus-node-exporter with textfile collector
+  template:
+    src: prometheus-node-exporter.override.conf.j2
+    dest: /etc/systemd/system/prometheus-node-exporter.service.d/override.conf
+  when: proxmox_node_exporter_install_method | default('package') == 'package'
+  notify:
+    - reload systemd
+    - restart prometheus-node-exporter
+
+- name: Ensure node exporter service is enabled and running (package)
+  systemd:
+    name: prometheus-node-exporter
+    enabled: yes
+    state: started
+  when: proxmox_node_exporter_install_method | default('package') == 'package' and not ansible_check_mode
+
+- name: Ensure node exporter service is enabled and running (binary)
+  systemd:
+    name: node-exporter
+    enabled: yes
+    state: started
+  when: proxmox_node_exporter_install_method | default('package') == 'binary' and not ansible_check_mode
+
+- name: Configure Proxmox firewall for node exporter
+  template:
+    src: node-exporter.pve.j2
+    dest: /etc/pve/firewall/100.fw
+  when: proxmox_configure_firewall | default(false)

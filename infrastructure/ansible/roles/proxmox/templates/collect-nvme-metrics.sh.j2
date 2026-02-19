@@ -1,0 +1,138 @@
+#!/bin/bash
+# Collect NVMe metrics for Prometheus textfile collector
+
+OUTPUT_FILE="{{ node_exporter_textfile_dir }}/nvme_smart.prom"
+TMP_FILE="${OUTPUT_FILE}.tmp"
+
+# Clear temp file
+> "$TMP_FILE"
+
+# Function to convert temperature from Kelvin to Celsius
+kelvin_to_celsius() {
+    local kelvin=$1
+    echo $((kelvin - 273))
+}
+
+# Function to sanitize metric names
+sanitize_metric_name() {
+    echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | tr '-' '_' | tr '.' '_'
+}
+
+# Get all NVMe devices
+nvme_devices=$(nvme list | grep -E '^/dev/nvme[0-9]+' | awk '{print $1}')
+
+for device in $nvme_devices; do
+    device_name=$(basename "$device")
+    model=$(nvme id-ctrl "$device" | grep -E '^mn\s*:' | sed 's/.*://' | xargs)
+    serial=$(nvme id-ctrl "$device" | grep -E '^sn\s*:' | sed 's/.*://' | xargs)
+    
+    # Get smart-log data
+    smart_log=$(nvme smart-log "$device" 2>/dev/null)
+    
+    if [ -z "$smart_log" ]; then
+        continue
+    fi
+    
+    # Parse and output metrics
+    while IFS= read -r line; do
+        # Skip empty lines and headers
+        [ -z "$line" ] && continue
+        echo "$line" | grep -q "Smart Log for NVME" && continue
+        
+        # Extract key and value
+        key=$(echo "$line" | cut -d':' -f1 | xargs)
+        value=$(echo "$line" | cut -d':' -f2- | xargs)
+        
+        # Skip lines without proper key-value pairs
+        [ -z "$key" ] && continue
+        
+        metric_name=$(sanitize_metric_name "$key")
+        
+        # Handle different value formats
+        case "$metric_name" in
+            critical_warning)
+                # Extract hex value
+                hex_val=$(echo "$value" | grep -oE '0x[0-9a-fA-F]+' || echo "0")
+                dec_val=$((hex_val))
+                echo "nvme_smart_${metric_name}{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${dec_val}" >> "$TMP_FILE"
+                ;;
+            temperature)
+                # Extract Celsius value
+                temp_c=$(echo "$value" | grep -oE '[0-9]+°C' | grep -oE '[0-9]+' || echo "")
+                if [ -n "$temp_c" ]; then
+                    echo "nvme_smart_${metric_name}_celsius{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${temp_c}" >> "$TMP_FILE"
+                fi
+                ;;
+            available_spare|available_spare_threshold|percentage_used)
+                # Extract percentage
+                pct=$(echo "$value" | grep -oE '[0-9]+' | head -1 || echo "")
+                if [ -n "$pct" ]; then
+                    echo "nvme_smart_${metric_name}{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${pct}" >> "$TMP_FILE"
+                fi
+                ;;
+            data_units_read|data_units_written)
+                # Extract the number in parentheses (TB) or main number
+                num=$(echo "$value" | grep -oE '[0-9,]+' | head -1 | tr -d ',' || echo "")
+                if [ -n "$num" ]; then
+                    echo "nvme_smart_${metric_name}{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${num}" >> "$TMP_FILE"
+                fi
+                ;;
+            host_read_commands|host_write_commands|controller_busy_time|power_cycles|power_on_hours|unsafe_shutdowns|media_errors|num_err_log_entries|warning_temperature_time|critical_composite_temperature_time)
+                # Extract numeric value
+                num=$(echo "$value" | grep -oE '[0-9,]+' | head -1 | tr -d ',' || echo "")
+                if [ -n "$num" ]; then
+                    echo "nvme_smart_${metric_name}{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${num}" >> "$TMP_FILE"
+                fi
+                ;;
+            temperature_sensor_*)
+                # Extract Celsius value
+                temp_c=$(echo "$value" | grep -oE '[0-9]+°C' | grep -oE '[0-9]+' || echo "")
+                if [ -n "$temp_c" ]; then
+                    sensor_num=$(echo "$metric_name" | grep -oE '[0-9]+')
+                    echo "nvme_smart_temperature_sensor_celsius{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\",sensor=\"${sensor_num}\"} ${temp_c}" >> "$TMP_FILE"
+                fi
+                ;;
+            thermal_management_t*_trans_count|thermal_management_t*_total_time)
+                # Extract numeric value
+                num=$(echo "$value" | grep -oE '[0-9,]+' | head -1 | tr -d ',' || echo "")
+                if [ -n "$num" ]; then
+                    echo "nvme_smart_${metric_name}{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} ${num}" >> "$TMP_FILE"
+                fi
+                ;;
+        esac
+    done <<< "$smart_log"
+    
+    # Add collection timestamp
+    echo "nvme_smart_collection_timestamp{device=\"${device_name}\",model=\"${model}\",serial=\"${serial}\"} $(date +%s)" >> "$TMP_FILE"
+done
+
+# Add help and type annotations for key metrics
+HELP_TYPES="# HELP nvme_smart_temperature_celsius NVMe temperature in Celsius
+# TYPE nvme_smart_temperature_celsius gauge
+# HELP nvme_smart_available_spare Available spare capacity percentage
+# TYPE nvme_smart_available_spare gauge
+# HELP nvme_smart_available_spare_threshold Available spare threshold percentage
+# TYPE nvme_smart_available_spare_threshold gauge
+# HELP nvme_smart_percentage_used Percentage used
+# TYPE nvme_smart_percentage_used gauge
+# HELP nvme_smart_data_units_read Data units read
+# TYPE nvme_smart_data_units_read counter
+# HELP nvme_smart_data_units_written Data units written
+# TYPE nvme_smart_data_units_written counter
+# HELP nvme_smart_host_read_commands Host read commands
+# TYPE nvme_smart_host_read_commands counter
+# HELP nvme_smart_host_write_commands Host write commands
+# TYPE nvme_smart_host_write_commands counter
+# HELP nvme_smart_power_cycles Power cycles
+# TYPE nvme_smart_power_cycles counter
+# HELP nvme_smart_power_on_hours Power on hours
+# TYPE nvme_smart_power_on_hours counter
+# HELP nvme_smart_unsafe_shutdowns Unsafe shutdowns
+# TYPE nvme_smart_unsafe_shutdowns counter
+# HELP nvme_smart_media_errors Media errors
+# TYPE nvme_smart_media_errors counter
+"
+
+# Prepend help text and move to final location
+printf '%s\n%s\n' "$HELP_TYPES" "$(cat "$TMP_FILE")" > "$OUTPUT_FILE"
+rm -f "$TMP_FILE"

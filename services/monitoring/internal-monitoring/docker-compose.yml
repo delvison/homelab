@@ -24,19 +24,27 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "500k"
+        max-size: "128k"
         max-file: "1"
     command: serve
     environment:
       TZ: America/New_York
       NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
       NTFY_AUTH_DEFAULT_ACCESS: deny-all
-      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      NTFY_ATTACHMENT_CACHE_DIR: /tmp/ntfy-attachments
       NTFY_BASE_URL: ${NTFY_BASE_URL}
+      NTFY_CACHE_FILE: /tmp/ntfy-cache.db
     user: ${UID}:${GID}
     volumes:
-      - ${BASE_DIR:-.}/ntfy/cache:/var/cache/ntfy
       - ${BASE_DIR:-.}/ntfy/ntfy:/var/lib/ntfy
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 50M
+      - type: tmpfs
+        target: /var/cache/ntfy
+        tmpfs:
+          size: 20M
     ports:
       - 12500:80
     deploy:
@@ -50,14 +58,34 @@ services:
       - internal-monitoring
 
   gatus-postgres-internal:
-    image: postgres
+    image: postgres:15-alpine
     restart: always
     volumes:
-      - gatus-postgres-vol:/var/lib/postgresql/data
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+        tmpfs:
+          size: 100M
     environment:
       - POSTGRES_DB=gatus
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      # Performance optimizations for ephemeral data
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    tmpfs:
+      - /var/lib/postgresql/data:size=100M,noexec,nosuid,nodev
+    command: >
+      postgres
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+      -c bgwriter_lru_maxpages=0
+      -c wal_level=minimal
+      -c max_wal_senders=0
+      -c shared_buffers=32MB
+      -c effective_cache_size=64MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=16MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "gatus"]
       interval: 20s
@@ -69,6 +97,11 @@ services:
         limits:
           cpus: '0.01'
           memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: 32m
+        max-file: "1"
     networks:
       - internal-monitoring
 
@@ -81,8 +114,11 @@ services:
     cap_add:
       - NET_ADMIN
     volumes:
-      - "${BASE_DIR:-.}/gatus/config/:/config"  # can drop in more config files in the host as these files get merged
-      - "${BASE_DIR:-.}/gatus/data:/data/"
+      - "${BASE_DIR:-.}/gatus/config/:/config:ro"
+      - type: tmpfs
+        target: /data
+        tmpfs:
+          size: 50M
     environment:
       GATUS_CONFIG_PATH: "/config"
       NTFY_URL: "${NTFY_URL}"
@@ -90,6 +126,7 @@ services:
       NTFY_TOPIC: "${NTFY_TOPIC}"
       GATUS_DB_USER: "${GATUS_DB_USER}"
       GATUS_DB_PASSWORD: "${GATUS_DB_PASSWORD}"
+      GATUS_STORAGE_PATH: "/data/gatus.db"
     deploy:
       resources:
         limits:
@@ -108,5 +145,4 @@ services:
     dns:
       - ${DNS_SERVER}
 
-volumes:
-  gatus-postgres-vol:
+

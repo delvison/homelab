@@ -1,14 +1,397 @@
+# Production-hardened Caddyfile
+# Security features enabled:
+# - Admin API bound to localhost only
+# - HSTS with preload
+# - Security headers (X-Frame-Options, CSP, etc.)
+# - Request body limit: 50MB
+# - Bot and attack pattern blocking
+# - Enhanced logging
+#
+# NOTE: Rate limiting available via fail2ban jails
+# For application-level rate limiting, install caddy-rate-limit module
+
 {
+	# Bind admin API to localhost only for security
+	admin 127.0.0.1:2019
+	
 	servers {
 		metrics
 	}
 }
 
-http://localhost:22067 {
+# Snippet: Common security headers
+(security_headers) {
+	header {
+		# HSTS - preload ready
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		
+		# Clickjacking protection
+		X-Frame-Options "DENY"
+		
+		# MIME sniffing protection
+		X-Content-Type-Options "nosniff"
+		
+		# XSS protection
+		X-XSS-Protection "1; mode=block"
+		
+		# Referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+		
+		# Remove server identification
+		-Server
+		
+		# Permissions policy
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+	}
+}
+
+# Snippet: Request limits and timeouts
+(request_limits) {
+	request_body {
+		max_size 50MB
+	}
+}
+
+# Snippet: Bot and attack protection
+(bot_protection) {
+	# Block suspicious user agents
+	@bad_ua {
+		header User-Agent *sqlmap*
+		header User-Agent *nikto*
+		header User-Agent *nessus*
+		header User-Agent *masscan*
+		header User-Agent *nmap*
+		header User-Agent *zgrab*
+		header User-Agent *gobuster*
+		header User-Agent *dirbuster*
+		header User-Agent *wfuzz*
+		header User-Agent *burp*
+		header User-Agent *metasploit*
+		header User-Agent *hydra*
+		header User-Agent *arachni*
+		header User-Agent *wpscan*
+		header User-Agent *joomscan*
+		header User-Agent *droopescan*
+		header User-Agent *openvas*
+		header User-Agent *acunetix*
+		header User-Agent *appscan*
+		header User-Agent *netsparker*
+		header User-Agent *webinspect*
+		header User-Agent *skipfish*
+		header User-Agent *vega*
+		header User-Agent *w3af*
+		header User-Agent *grabber*
+		header User-Agent *grendel-scan*
+		header User-Agent *cintruder*
+		header User-Agent *blindelephant*
+		header User-Agent *browserprint*
+		header User-Agent *cloudfail*
+		header User-Agent *cloudflair*
+		header User-Agent *commix*
+		header User-Agent *corscanner*
+		header User-Agent *crlf-injector*
+		header User-Agent *csrftester*
+		header User-Agent *cyberchef*
+		header User-Agent *davtest*
+		header User-Agent *dom-based-xss-scanner*
+		header User-Agent *dotdotpwn*
+		header User-Agent *exploitpack*
+		header User-Agent *faraday*
+		header User-Agent *fierce*
+		header User-Agent *fimap*
+		header User-Agent *firewalk*
+		header User-Agent *ftp-spider*
+		header User-Agent *ghost*
+		header User-Agent *gittools*
+		header User-Agent *hakrawler*
+		header User-Agent *halberd*
+		header User-Agent *hetty*
+		header User-Agent *htrosbif*
+		header User-Agent *http-traceroute*
+		header User-Agent *httprint*
+		header User-Agent *httprobe*
+		header User-Agent *identywaf*
+		header User-Agent *impacket*
+		header User-Agent *inspath*
+		header User-Agent *jaeles*
+		header User-Agent *jhead*
+		header User-Agent *jsql*
+		header User-Agent *kadimus*
+		header User-Agent *katana*
+		header User-Agent *knock*
+		header User-Agent *lbd*
+		header User-Agent *leviathan*
+		header User-Agent *liffy*
+		header User-Agent *linkfinder*
+		header User-Agent *log4j-scan*
+		header User-Agent *lunar*
+		header User-Agent *maltego*
+		header User-Agent *maryam*
+		header User-Agent *meg*
+		header User-Agent *modsecurity*
+		header User-Agent *mongoaudit*
+		header User-Agent *mssqlscan*
+		header User-Agent *mylg*
+		header User-Agent *naabu*
+		header User-Agent *nuclei*
+		header User-Agent *o-saft*
+		header User-Agent *odat*
+		header User-Agent *okadminfinder*
+		header User-Agent *one-lin3r*
+		header User-Agent *orbitaldump*
+		header User-Agent *osrframework*
+		header User-Agent *owasp-zap*
+		header User-Agent *padding-oracle*
+		header User-Agent *panhunt*
+		header User-Agent *paranoiapwn*
+		header User-Agent *paros*
+		header User-Agent *patator*
+		header User-Agent *payloads-all-the-things*
+		header User-Agent *peepingtom*
+		header User-Agent *pentestbox*
+		header User-Agent *pentestgpt*
+		header User-Agent *pentmenu*
+		header User-Agent *photon*
+		header User-Agent *plecost*
+		header User-Agent *powerfuzzer*
+		header User-Agent *proxify*
+		header User-Agent *pureblood*
+		header User-Agent *pwncat*
+		header User-Agent *pwdlyser*
+		header User-Agent *pyfiscan*
+		header User-Agent *pythem*
+		header User-Agent *raccoon*
+		header User-Agent *rapidscan*
+		header User-Agent *ratproxy*
+		header User-Agent *recsech*
+		header User-Agent *red-hawk*
+		header User-Agent *regeorg*
+		header User-Agent *remot3d*
+		header User-Agent *restler*
+		header User-Agent *retire*
+		header User-Agent *reverseip*
+		header User-Agent *rizin*
+		header User-Agent *roop*
+		header User-Agent *rsg*
+		header User-Agent *sawef*
+		header User-Agent *sc-make*
+		header User-Agent *scrying*
+		header User-Agent *sec_lists*
+		header User-Agent *seyren*
+		header User-Agent *shellnoob*
+		header User-Agent *shodan*
+		header User-Agent *sifter*
+		header User-Agent *sigthief*
+		header User-Agent *singularity*
+		header User-Agent *sipvicious*
+		header User-Agent *smbmap*
+		header User-Agent *smtp-user-enum*
+		header User-Agent *sn1per*
+		header User-Agent *snallygaster*
+		header User-Agent *social-engineer-toolkit*
+		header User-Agent *spiderfoot*
+		header User-Agent *spiga*
+		header User-Agent *splinter*
+		header User-Agent *sqlmate*
+		header User-Agent *sslscan*
+		header User-Agent *sslyze*
+		header User-Agent *striker*
+		header User-Agent *subbrute*
+		header User-Agent *subfinder*
+		header User-Agent *subjack*
+		header User-Agent *sublist3r*
+		header User-Agent *subscraper*
+		header User-Agent *swamp*
+		header User-Agent *tachyon*
+		header User-Agent *taipan*
+		header User-Agent *testssl*
+		header User-Agent *theharvester*
+		header User-Agent *tinfoleak*
+		header User-Agent *tirith*
+		header User-Agent *topera*
+		header User-Agent *torbot*
+		header User-Agent *tplmap*
+		header User-Agent *traxss*
+		header User-Agent *uacme*
+		header User-Agent *udork*
+		header User-Agent *ufonet*
+		header User-Agent *ultimate*
+		header User-Agent *uniscan*
+		header User-Agent *upnp-hacks*
+		header User-Agent *urlcrazy*
+		header User-Agent *urldedupe*
+		header User-Agent *urless*
+		header User-Agent *urlprobe*
+		header User-Agent *v3n0m*
+		header User-Agent *vaf*
+		header User-Agent *vault-scanner*
+		header User-Agent *vbscan*
+		header User-Agent *vega*
+		header User-Agent *vhostscan*
+		header User-Agent *visql*
+		header User-Agent *vulmap*
+		header User-Agent *vuls*
+		header User-Agent *w13scan*
+		header User-Agent *w3af*
+		header User-Agent *wafninja*
+		header User-Agent *wafpass*
+		header User-Agent *wafw00f*
+		header User-Agent *wascan*
+		header User-Agent *webacoo*
+		header User-Agent *webanalyze*
+		header User-Agent *webborer*
+		header User-Agent *webscan*
+		header User-Agent *webshell*
+		header User-Agent *websploit*
+		header User-Agent *weeman*
+		header User-Agent *whatweb*
+		header User-Agent *whispers*
+		header User-Agent *wig*
+		header User-Agent *windows-exploit-suggester*
+		header User-Agent *wolpertinger*
+		header User-Agent *wordlists*
+		header User-Agent *wpintel*
+		header User-Agent *wpscan*
+		header User-Agent *wpxf*
+		header User-Agent *wsuspect-proxy*
+		header User-Agent *wwant*
+		header User-Agent *xattacker*
+		header User-Agent *xdotool*
+		header User-Agent *xsssniper*
+		header User-Agent *xsser*
+		header User-Agent *xsstrike*
+		header User-Agent *xssya*
+		header User-Agent *yasuo*
+		header User-Agent *yawast*
+		header User-Agent *ysoserial*
+		header User-Agent *zaproxy*
+		header User-Agent *zeus-scanner*
+		header User-Agent *zizzania*
+	}
+	abort @bad_ua
+	
+	# Block common attack paths
+	@attack_paths {
+		path /.env
+		path /.env.local
+		path /.env.production
+		path /.env.development
+		path /config.json
+		path /config.yml
+		path /config.yaml
+		path /.git/config
+		path /.git/HEAD
+		path /.git/index
+		path /.git/logs/*
+		path /.git/objects/*
+		path /.git/refs/*
+		path /.gitignore
+		path /.htaccess
+		path /.htpasswd
+		path /wp-config.php
+		path /wp-admin/*
+		path /wp-includes/*
+		path /wp-content/*
+		path /xmlrpc.php
+		path /administrator/*
+		path /admin/*
+		path /admin/login*
+		path /admin/admin*
+		path /phpmyadmin/*
+		path /phpMyAdmin/*
+		path /pma/*
+		path /mysql/*
+		path /myadmin/*
+		path /database/*
+		path /db/*
+		path /api/.env
+		path /api/config*
+		path /api/v1/.env
+		path /api/v2/.env
+		path /api/v3/.env
+		path /vendor/*
+		path /composer.json
+		path /composer.lock
+		path /package.json
+		path /package-lock.json
+		path /yarn.lock
+		path /node_modules/*
+		path /docker-compose*
+		path /dockerfile
+		path /Dockerfile
+		path /docker-compose.yml
+		path /docker-compose.yaml
+		path /.dockerignore
+		path /.travis.yml
+		path /.gitlab-ci.yml
+		path /.github/*
+		path /server-status
+		path /server-info
+		path /status
+		path /info.php
+		path /phpinfo.php
+		path /test.php
+		path /debug.php
+		path /console
+		path /shell
+		path /cgi-bin/*
+		path /awstats/*
+		path /webalizer/*
+		path /stats/*
+		path /log/*
+		path /logs/*
+		path /backup/*
+		path /backups/*
+		path /bak/*
+		path /old/*
+		path /test/*
+		path /tests/*
+		path /demo/*
+		path /temp/*
+		path /tmp/*
+		path /cache/*
+		path /upload/*
+		path /uploads/*
+		path /files/*
+		path /file/*
+		path /download/*
+		path /downloads/*
+		path /export/*
+		path /exports/*
+		path /import/*
+		path /imports/*
+		path /data/*
+		path /database/*
+		path /db/*
+		path /sql/*
+		path /mysql/*
+		path /pgadmin/*
+		path /phpPgAdmin/*
+		path /pma/*
+		path /myadmin/*
+		path /adminer/*
+		path /websql/*
+	}
+	abort @attack_paths
+	
+	# Block HTTP methods except GET, POST, HEAD, PUT, DELETE, OPTIONS
+	@bad_methods {
+		method CONNECT
+		method TRACE
+		method TRACK
+		method DEBUG
+		method PATCH
+	}
+	abort @bad_methods
+}
+
+# Internal services (Tailscale only)
+# These bind to localhost only, accessible via Tailscale
+127.0.0.1:22067 {
 	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22067
 }
 
-localhost:22026 {
+127.0.0.1:22026 {
 	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22026 {
 		transport http {
 			tls
@@ -17,87 +400,164 @@ localhost:22026 {
 	}
 }
 
-:22070 {
+127.0.0.1:22070 {
 	reverse_proxy {{ server3 }}.{{ caddy_domain }}:22070
 }
 
 
 *.{{ caddy_domain }} {
+	import security_headers
+	import request_limits
+	import bot_protection
+	
+	# Enhanced logging
 	log {
 		output file /var/log/caddy/{{ caddy_domain }}.access.log {
-			roll_keep 5
+			roll_size 100MB
+			roll_keep 10
+			roll_keep_for 720h
 		}
-		format json
+		format json {
+			time_format rfc3339
+		}
+	}
+	
+	# Error logging
+	handle_errors {
+		respond "{http.error.status_code} {http.error.status_text}" {http.error.status_code}
 	}
 
 	tls { 
 		dns cloudflare {{ cloudflare_api_token }}
+		resolvers 1.1.1.1 8.8.8.8
 	}
 
-	@proxy host http://proxy.{{ caddy_domain }}
+	@proxy host proxy.{{ caddy_domain }}
 	handle @proxy {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:22067
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:22067 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@joplin host joplin.{{ caddy_domain }}
 	handle @joplin {
-		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:22300
+		# CSP for Joplin
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+		
+		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:22300 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@paste host paste.{{ caddy_domain }}
 	handle @paste {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:10500
+		# CSP for Paste service (allows uploads)
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+		
+		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:10500 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@rss host rss.{{ caddy_domain }}
 	handle @rss {
-		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:9111
+		# CSP for RSS reader
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; media-src 'self' https:; frame-src 'self'; frame-ancestors 'none';"
+		
+		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:9111 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@audiobookshelf host audiobookshelf.{{ caddy_domain }}
 	handle @audiobookshelf {
-		reverse_proxy http://{{ server4 }}:2008
+		# CSP for audiobook streaming
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' wss:; media-src 'self' blob:; frame-src 'self'; frame-ancestors 'none';"
+		
+		reverse_proxy /opds* http://{{ server4 }}:2007 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+		reverse_proxy /     http://{{ server4 }}:2008 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
-	@gitea host gitea.{{ caddy_domain }}
-	handle @gitea {
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:2000
-	}
-	
 	@mempool host mempool.{{ caddy_domain }}
 	handle @mempool {
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:8050
+		# CSP for mempool explorer
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' wss: https:; media-src 'self'; frame-src 'none'; frame-ancestors 'none';"
+		
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:8050 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@nc host nc.{{ caddy_domain }}
 	handle @nc {
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:18600
+		# CSP for NextCloud
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss: blob:; media-src 'self' blob:; frame-src 'self' blob:; frame-ancestors 'self'; worker-src 'self' blob:;"
+		
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:18600 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@music host music.{{ caddy_domain }}
 	handle @music {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:4553
+		# CSP for music streaming
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-src 'none'; frame-ancestors 'none';"
+		
+		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:4553 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@n host n.{{ caddy_domain }}
 	handle @n {
-		reverse_proxy http://localhost:2586
-
-    # Redirect HTTP to HTTPS, but only for GET topic addresses, since we want
-    # it to work with curl without the annoying https:// prefix
-    @httpget {
-        protocol http
-        method GET
-        path_regexp ^/([-_a-z0-9]{0,64}$|docs/|static/)
-    }
-    redir @httpget https://{host}{uri}
-	}
-
-	@authentik host authentik.{{ caddy_domain }}
-	handle @authentik {
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:9000 {
-			header_up Host {http.request.host}
+		# CSP for n service
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none';"
+		
+		reverse_proxy http://localhost:2586 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
 		}
+
+		# Redirect HTTP to HTTPS for GET requests
+		@httpget {
+			protocol http
+			method GET
+			path_regexp ^/([-_a-z0-9]{0,64}$|docs/|static/)
+		}
+		redir @httpget https://{host}{uri}
 	}
 
 	handle {

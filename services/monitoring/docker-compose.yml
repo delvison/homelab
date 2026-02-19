@@ -11,7 +11,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: 512m
+        max-size: 64m
+        max-file: "2"
     ports:
       # - 1888:1888 # pprof extension
       # - 8888:8888 # Prometheus metrics exposed by the Collector
@@ -36,11 +37,12 @@ services:
     restart: unless-stopped
     volumes:
       - ${BASE_DIR:-.}/influxdb/data:/var/lib/influxdb2
-      - ${BASE_DIR:-.}/influxdb/config:/etc/influxdb2
+      - ${BASE_DIR:-.}/influxdb/config:/etc/influxdb2:ro
     logging:
       driver: json-file
       options:
-        max-size: 512m
+        max-size: 128m
+        max-file: "3"
     ports:
       - '8086:8086'
     environment:
@@ -49,6 +51,12 @@ services:
       DOCKER_INFLUXDB_INIT_PASSWORD: "${DOCKER_INFLUXDB_INIT_PASSWORD}"
       DOCKER_INFLUXDB_INIT_ORG: "${DOCKER_INFLUXDB_INIT_ORG}"
       DOCKER_INFLUXDB_INIT_BUCKET: "${DOCKER_INFLUXDB_INIT_BUCKET}"
+      # Performance optimizations for NVMe temp reduction
+      INFLUXDB_STORAGE_CACHE_MAX_MEMORY_SIZE: "268435456"
+      INFLUXDB_STORAGE_CACHE_SNAPSHOT_MEMORY_SIZE: "134217728"
+      INFLUXDB_STORAGE_WAL_FSYNC_DELAY: "10s"
+      INFLUXDB_STORAGE_SERIES_ID_SET_CACHE_SIZE: "100"
+      INFLUXDB_HTTP_MAX_ROW_LIMIT: "10000"
     networks:
       - monitoring
     healthcheck:
@@ -67,11 +75,24 @@ services:
     restart: unless-stopped
     volumes:
       - ${BASE_DIR:-.}/grafana/data:/var/lib/grafana
-      - ${BASE_DIR:-.}/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ${BASE_DIR:-.}/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - type: tmpfs
+        target: /var/lib/grafana/sessions
+        tmpfs:
+          size: 32M
+      - type: tmpfs
+        target: /var/lib/grafana/tmp
+        tmpfs:
+          size: 64M
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 32M
     logging:
       driver: json-file
       options:
-        max-size: 512m
+        max-size: 64m
+        max-file: "2"
     ports:
       - '3000:3000'
     environment:
@@ -111,7 +132,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: 512m
+        max-size: 64m
+        max-file: "2"
     entrypoint:
       - sh
       - -euc
@@ -119,13 +141,13 @@ services:
         cat <<EOF > ./etc/telegraf/telegraf.conf
         [global_tags]
         [agent]
-          interval = "60s"
+          interval = "120s"
           round_interval = true
-          metric_batch_size = 1000
-          metric_buffer_limit = 10000
-          collection_jitter = "0s"
-          flush_interval = "10s"
-          flush_jitter = "0s"
+          metric_batch_size = 5000
+          metric_buffer_limit = 20000
+          collection_jitter = "5s"
+          flush_interval = "60s"
+          flush_jitter = "10s"
           precision = "0s"
           hostname = "${HOST}"
           omit_hostname = false
@@ -197,13 +219,18 @@ services:
     volumes:
       - ${BASE_DIR:-.}/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
-      - prometheus-tmp:/tmp
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 64M
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.min-block-duration=2h'
+      - '--storage.tsdb.max-block-duration=2h'
       - '--web.enable-lifecycle'
       - '--web.config.file=/etc/prometheus/web.yml'
     depends_on:
@@ -231,6 +258,23 @@ services:
       - no-new-privileges:true
     read_only: true
 
+  alertmanager:
+    build: ./alertmanager
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - alertmanager-data:/alertmanager
+    environment:
+      - NTFY_DOMAIN=${NTFY_DOMAIN}
+      - NTFY_TOKEN=${NTFY_TOKEN}
+      - NTFY_TOPIC=${NTFY_TOPIC}
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
   # For Grafana to send emails
   postfix:
     image: boky/postfix@sha256:4b7e77349a09779b7fea281db2f113e66da69cdc362fbfb55fbc8c5716952d16
@@ -252,3 +296,4 @@ secrets:
 volumes:
   prometheus-data:
   prometheus-tmp:
+  alertmanager-data:

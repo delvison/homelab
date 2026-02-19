@@ -1,0 +1,29 @@
+# Fail2ban filter for Caddy web server
+# Detects malicious activity from Caddy JSON access logs
+
+[Definition]
+
+# Main filter - catches all suspicious activity
+failregex = ^{.*"level":"error".*"msg":"[^"]*".*"remote_ip":"<HOST>".*}$
+            ^{.*"remote_ip":"<HOST>".*"status":(?:404|403|429|400).*}$
+            ^{.*"status":(?:404|403|429|400).*"remote_ip":"<HOST>".*}$
+
+# Ignore legitimate requests
+ignoreregex = ^{.*"status":(?:200|201|204|301|302|304|308).*}$
+              ^{.*"method":"OPTIONS".*}$
+              ^{.*"request_uri":"/health".*}$
+              ^{.*"request_uri":"/metrics".*}$
+
+# Date pattern for JSON timestamps
+datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]%%d{2}:?%%d{2})?
+
+[Init]
+
+# Used for the caddy-scan jail (404 probing)
+scan_threshold = 5
+
+# Used for the caddy-attack jail (403/429)
+attack_threshold = 3
+
+# Used for the caddy-invalid jail (invalid host scanning)
+invalid_threshold = 5

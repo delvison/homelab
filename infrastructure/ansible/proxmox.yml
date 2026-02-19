@@ -1,0 +1,6 @@
+# ansible-playbook -i inventory.ini playbooks/proxmox.yml --check --diff --limit proxmox
+---
+- hosts: proxmox
+  become: yes
+  roles:
+    - proxmox

@@ -1,0 +1,112 @@
+#!/bin/bash
+# Collect system temperature metrics for Prometheus textfile collector
+
+OUTPUT_FILE="{{ node_exporter_textfile_dir }}/temperature.prom"
+TMP_FILE="${OUTPUT_FILE}.tmp"
+
+> "$TMP_FILE"
+
+# Add help and type annotations
+cat >> "$TMP_FILE" << 'EOF'
+# HELP system_temperature_celsius System temperature in Celsius
+# TYPE system_temperature_celsius gauge
+# HELP cpu_temperature_celsius CPU temperature in Celsius
+# TYPE cpu_temperature_celsius gauge
+EOF
+
+# Try to get CPU temperature from various sources
+collect_cpu_temp() {
+    local temp=""
+    
+    # Try coretemp (Intel/AMD CPUs)
+    if [ -d "/sys/class/hwmon/hwmon*" ]; then
+        for hwmon in /sys/class/hwmon/hwmon*; do
+            name=$(cat "$hwmon/name" 2>/dev/null)
+            if [[ "$name" == "coretemp" || "$name" == "k10temp" || "$name" == "cpu_thermal" ]]; then
+                for temp_input in "$hwmon"/temp*_input; do
+                    if [ -f "$temp_input" ]; then
+                        label=$(basename "$temp_input" | sed 's/temp\(.*\)_input/\1/')
+                        # Read temperature in millidegrees and convert to Celsius
+                        temp_val=$(cat "$temp_input" 2>/dev/null)
+                        if [ -n "$temp_val" ]; then
+                            temp_c=$((temp_val / 1000))
+                            echo "cpu_temperature_celsius{sensor=\"${label}\"} ${temp_c}" >> "$TMP_FILE"
+                        fi
+                    fi
+                done
+                break
+            fi
+        done
+    fi
+    
+    # Try sensors command if available
+    if command -v sensors &> /dev/null; then
+        # Extract CPU temperature
+        sensors | grep -E '^CPU:|^Core |^temp[0-9]+:' | while read -r line; do
+            temp=$(echo "$line" | grep -oE '[0-9]+\.[0-9]+°C' | head -1 | grep -oE '[0-9]+' || echo "")
+            if [ -n "$temp" ]; then
+                sensor=$(echo "$line" | cut -d':' -f1 | xargs | tr ' ' '_')
+                echo "cpu_temperature_celsius{sensor=\"${sensor}\"} ${temp}" >> "$TMP_FILE"
+            fi
+        done
+    fi
+}
+
+# Collect GPU temperature if available
+collect_gpu_temp() {
+    # NVIDIA GPUs
+    if command -v nvidia-smi &> /dev/null; then
+        nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | while read -r temp; do
+            if [ -n "$temp" ]; then
+                echo "system_temperature_celsius{sensor=\"nvidia_gpu\"} ${temp}" >> "$TMP_FILE"
+            fi
+        done
+    fi
+    
+    # AMD GPUs (if amdgpu info is available)
+    if [ -d "/sys/class/drm/card0/device/hwmon" ]; then
+        for hwmon in /sys/class/drm/card0/device/hwmon/hwmon*; do
+            if [ -f "$hwmon/temp1_input" ]; then
+                temp_val=$(cat "$hwmon/temp1_input" 2>/dev/null)
+                if [ -n "$temp_val" ]; then
+                    temp_c=$((temp_val / 1000))
+                    echo "system_temperature_celsius{sensor=\"amdgpu\"} ${temp_c}" >> "$TMP_FILE"
+                fi
+            fi
+        done
+    fi
+}
+
+# Collect motherboard/ambient temperatures
+collect_system_temp() {
+    if [ -d "/sys/class/hwmon/hwmon*" ]; then
+        for hwmon in /sys/class/hwmon/hwmon*; do
+            name=$(cat "$hwmon/name" 2>/dev/null)
+            # Look for various temperature sensors
+            for temp_input in "$hwmon"/temp*_input; do
+                if [ -f "$temp_input" ]; then
+                    label=$(basename "$temp_input" | sed 's/temp\(.*\)_input/\1/')
+                    temp_val=$(cat "$temp_input" 2>/dev/null)
+                    if [ -n "$temp_val" ] && [ "$temp_val" -gt 0 ]; then
+                        temp_c=$((temp_val / 1000))
+                        # Skip if it's already captured as CPU temp
+                        if [[ "$name" != "coretemp" && "$name" != "k10temp" && "$name" != "cpu_thermal" ]]; then
+                            echo "system_temperature_celsius{sensor=\"${name}_${label}\"} ${temp_c}" >> "$TMP_FILE"
+                        fi
+                    fi
+                fi
+            done
+        done
+    fi
+}
+
+# Execute collection
+collect_cpu_temp
+collect_gpu_temp
+collect_system_temp
+
+# Add timestamp
+echo "temperature_collection_timestamp $(date +%s)" >> "$TMP_FILE"
+
+# Move to final location
+mv "$TMP_FILE" "$OUTPUT_FILE"

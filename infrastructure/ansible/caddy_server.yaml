@@ -3,10 +3,10 @@
 ---
 - name: Install Caddy
   become: true
-  hosts: all
+  hosts: caddy
   vars:
     # https://github.com/caddyserver/caddy/releases/
-    caddy_version: 2.9.1
+    caddy_version: 2.10.0
   vars_files:
     - "./vars/vault.yml"
   roles:

@@ -1,0 +1,44 @@
+---
+- name: reload systemd
+  command: systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: restart node-exporter
+  systemd:
+    name: node-exporter
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not ansible_check_mode
+
+- name: restart prometheus-node-exporter
+  systemd:
+    name: prometheus-node-exporter
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not ansible_check_mode
+
+- name: restart nvme-metrics timer
+  systemd:
+    name: nvme-metrics.timer
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not ansible_check_mode
+
+- name: restart temperature-metrics timer
+  systemd:
+    name: temperature-metrics.timer
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not ansible_check_mode
+
+- name: restart disk-io-metrics timer
+  systemd:
+    name: disk-io-metrics.timer
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not ansible_check_mode

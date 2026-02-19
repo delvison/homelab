@@ -1,0 +1,27 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'device']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'ntfy'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'ntfy'
+      continue: true
+
+receivers:
+  - name: 'ntfy'
+    webhook_configs:
+      - url: '${NTFY_DOMAIN}/${NTFY_TOPIC}?Authorization=${NTFY_TOKEN}'
+        send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'device']

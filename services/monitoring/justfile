@@ -10,6 +10,7 @@ push-files:
   @scp -r ./otelcol {{deploy_host}}:$BASE_DIR/
   @scp -r ./prometheus {{deploy_host}}:$BASE_DIR/
   @scp -r ./grafana {{deploy_host}}:$BASE_DIR/
+  @scp -r ./alertmanager/ {{deploy_host}}:$BASE_DIR/
 
 save-secrets:
   sops -e .env > .env.enc
