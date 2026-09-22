@@ -1,0 +1,20 @@
+---
+rclone_remote: rustfs
+rclone_bucket: media
+rclone_mount_point: /mnt/rustfs-media
+rclone_binary_path: /usr/bin/rclone
+
+rclone_user: rclone
+rclone_group: rclone
+rclone_home: /var/lib/rclone
+rclone_config_dir: /etc/rclone
+rclone_cache_dir: /var/cache/rclone
+rclone_mount_owner: "{{ admin_user }}"
+rclone_mount_group: "{{ admin_group }}"
+
+rclone_vfs_cache_mode: writes
+rclone_vfs_cache_max_age: 24h
+rclone_dir_cache_time: 1h
+rclone_poll_interval: 1m
+rclone_umask: "002"
+rclone_allow_other: true

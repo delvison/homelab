@@ -1,0 +1,5 @@
+---
+- name: restart rclone mount
+  systemd:
+    name: "rclone-mount-{{ rclone_remote }}.service"
+    state: restarted

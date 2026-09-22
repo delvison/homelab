@@ -1,0 +1,31 @@
+[Unit]
+Description=rclone mount for {{ rclone_remote }}:{{ rclone_bucket }}
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User={{ rclone_user }}
+Group={{ rclone_group }}
+ExecStart={{ rclone_binary_path }} mount \
+  --config={{ rclone_config_dir }}/rclone.conf \
+  --cache-dir={{ rclone_cache_dir }} \
+  --vfs-cache-mode {{ rclone_vfs_cache_mode }} \
+  --vfs-cache-max-age {{ rclone_vfs_cache_max_age }} \
+  --dir-cache-time {{ rclone_dir_cache_time }} \
+  --poll-interval {{ rclone_poll_interval }} \
+  --umask {{ rclone_umask }} \
+  --uid {{ rclone_mount_uid }} \
+  --gid {{ rclone_mount_gid }} \
+  {% if rclone_allow_other %}--allow-other {% endif %}\
+  {{ rclone_remote }}:{{ rclone_bucket }} {{ rclone_mount_point }}
+ExecStop=+/bin/fusermount3 -uz {{ rclone_mount_point }}
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

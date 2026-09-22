@@ -53,3 +53,13 @@
     - dojo
   tags:
     - dojo
+
+- name: Mount rustfs media bucket
+  hosts: server
+  vars_files:
+    - "./vars/vault.yml"
+  become: true
+  roles:
+    - rclone-mount
+  tags:
+    - rustfs
