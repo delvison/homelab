@@ -1,0 +1,40 @@
+set dotenv-load
+
+# deploy_host := "$HOST-docker"
+deploy_host := "$HOST"
+
+yeet-files:
+  @find . -maxdepth 1 -type d -not -name . | while read dir; do scp -r "$dir" {{deploy_host}}:$BASE_DIR; done
+
+set-context:
+  @echo "(+) Setting Docker context..."
+  @docker context create {{deploy_host}} --docker "host=ssh://{{deploy_host}}" || true
+  @docker context use {{deploy_host}}
+
+gen-secrets:
+  @if grep -q '^RUSTFS_ACCESS_KEY=' .env 2>/dev/null; then \
+    echo "RUSTFS secrets already present in .env; leaving as-is."; \
+    exit 1; \
+  fi
+  @printf 'RUSTFS_ACCESS_KEY=%s\n' "$(openssl rand -hex 8)" >> .env
+  @printf 'RUSTFS_SECRET_KEY=%s\n' "$(openssl rand -hex 16)" >> .env
+  @echo "(+) Wrote RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY to .env"
+  @echo "(+) Run 'just save-secrets' to update .env.enc"
+
+save-secrets:
+  sops -e .env > .env.enc
+
+secrets: gen-secrets save-secrets
+
+deploy: set-context yeet-files
+  docker compose pull
+  BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
+
+update: set-context
+  docker compose pull
+
+logs:
+  docker compose logs -f
+
+shell:
+  nix-shell

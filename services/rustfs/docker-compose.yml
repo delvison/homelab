@@ -1,0 +1,73 @@
+---
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs
+    user: "${UID}:${GID}"
+    depends_on:
+      volume-permission-helper:
+        condition: service_completed_successfully
+    security_opt:
+      - "no-new-privileges:true"
+    ports:
+      - 19000:9000 # S3 API
+      - 19001:9001 # Console
+    environment:
+      - TZ=${TZ} # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      - RUSTFS_VOLUMES=/data
+      - RUSTFS_ADDRESS=0.0.0.0:9000
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS=*
+      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
+      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
+      - RUSTFS_OBS_LOGGER_LEVEL=info
+      - RUSTFS_OBS_LOG_DIRECTORY=/app/logs
+      # For local testing only, set RUSTFS_UNSAFE_BYPASS_DISK_CHECK=true explicitly.
+      - RUSTFS_UNSAFE_BYPASS_DISK_CHECK=${RUSTFS_UNSAFE_BYPASS_DISK_CHECK:-false}
+    volumes:
+      - ${BASE_DIR:-.}/rustfs/data:/data
+      - ${BASE_DIR:-.}/rustfs/logs:/app/logs
+    networks:
+      - rustfs
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh", "-ec",
+          "curl -fsS http://127.0.0.1:9000/health && \
+          curl -fsS http://127.0.0.1:9001/rustfs/console/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1G
+
+  # Prepares the bind-mounted host directories before RustFS starts.
+  volume-permission-helper:
+    image: alpine
+    volumes:
+      - ${BASE_DIR:-.}/rustfs:/base
+    command: >
+      sh -c "
+        mkdir -p /base/data /base/logs &&
+        chown ${UID}:${GID} /base /base/data /base/logs &&
+        echo 'Volume permissions fixed'
+      "
+    restart: "no"
+
+networks:
+  rustfs:
