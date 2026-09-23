@@ -1,0 +1,52 @@
+---
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf
+    container_name: audiobookshelf
+    volumes:
+      - "${BASE_DIR:-.}/audiobookshelf/config:/config"
+      - "${BASE_DIR:-.}/audiobookshelf/metadata:/metadata"
+      - /mnt/rustfs-media/Books/Audiobooks:/audiobooks
+      - /mnt/rustfs-media/Books/Ebooks:/books
+    restart: unless-stopped
+    ports:
+      - 2008:80
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  abs-opds:
+    image: ghcr.io/vito0912/abs-opds:latest
+    container_name: abs-opds
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      ABS_URL: "https://${AUDIOBOOKSHELF_DOMAIN}"
+      OPDS_PAGE_SIZE: 20
+      OPDS_CATEGORIES: all,recent,authors,narrators,genres,series
+      SHOW_AUDIOBOOKS: "true"
+      SHOW_CHAR_CARDS: "true"
+    restart: unless-stopped
+    ports:
+      - 2007:3010
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
