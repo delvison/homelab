@@ -1,42 +1,65 @@
 # Bitcoin configuration file
+# Security-hardened for spam prevention
 
-# Run on the Tor network
+# Network settings - Tor only
 listen=1
 bind=127.0.0.1:8333
 onlynet=onion
-
-# Enable Tor
 proxy=127.0.0.1:9050
-listen=1
-maxconnections=40
+maxconnections={{ maxconnections }}
 
-# Enable full node features
+# Privacy
+dnsseed=0
+addnode=<your-trusted-node>.onion
+peerbloomfilters=0
+coinstatsindex=0
+blockfilterindex=0
+
+# Full node features
 server=1
 txindex=1
 prune=0
 
-# Security settings
+# RPC settings - LOCALHOST ONLY for security
 rpcuser={{ bitcoin_rpc_user }}
 rpcpassword={{ bitcoin_rpc_password }}
-rpcallowip=127.0.0.1
-rpcallowip=192.168.1.0/24
-rpcallowip=172.28.1.0/24
-rpcallowip=172.23.0.0/24
+rpcbind=127.0.0.1
 rpcport=8332
-disablewallet=1  # Disable wallet if not needed
-walletbroadcast=0
+
+# Disable wallet - not needed for routing node
+disablewallet=1
+
+# Data carrier settings
+# Allow standard OP_RETURN, limit size to prevent abuse
+datacarrier=1
+datacarriersize=80
+
+# Mempool limits to prevent spam
+maxmempool={{ maxmempool }}
+limitancestororsize={{ limitancestororsize }}
+limitdescendantorsize={{ limitdescendantorsize }}
+maxorphancache={{ maxorphancache }}
+
+# Block space pricing - require reasonable fees
+minrelaytxfee=0.00001000
+maxfeerate=0.10
+
+# Dust limits
+dustlimit={{ dustlimit }}
+
+# Bandwidth limits
+maxuploadtarget={{ maxuploadtarget }}
+
+# Database cache
+dbcache=2000
 
 # Logging
 printtoconsole=1
 debug=net
 logips=1
+logthreads=1
 
-# Miscellaneous settings
-maxuploadtarget=10000  # Limit upload bandwidth (in MB)
-dbcache=2000           # Set database cache size (in MB)
-
-# https://github.com/bitcoin/bitcoin/blob/master/doc/zmq.md
+# ZMQ for external Indexers
 zmqpubrawblock=tcp://127.0.0.1:28332
 zmqpubhashtx=tcp://127.0.0.1:28332
 zmqpubrawtx=tcp://127.0.0.1:28333
-#zmqpubkeyaddress=tcp://127.0.0.1:28334

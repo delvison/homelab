@@ -8,8 +8,8 @@ Group=bitcoin
 
 Type=forking
 PIDFile=/opt/bitcoin/bitcoind.pid
-ExecStart=/opt/bitcoin/bitcoin-{{ version }}/bin/bitcoind -conf=/opt/bitcoin/bitcoin.conf -pid=/opt/bitcoin/bitcoind.pid -datadir=/opt/bitcoin/data -conf=/opt/bitcoin/data/bitcoin.conf -daemon
-ExecStop=/opt/bitcoin/bitcoin-{{ version }}/bin/bitcoin-cli -conf=/opt/bitcoin/bitcoin.conf -datadir=/opt/bitcoin/data -conf=/opt/bitcoin/data/bitcoin.conf stop && /bin/rm -rf /opt/bitcoin/bitcoind.pid
+ExecStart=/opt/bitcoin/bitcoin-{{ bitcoin_version }}/bin/bitcoind -pid=/opt/bitcoin/bitcoind.pid -datadir=/opt/bitcoin/data -conf=/opt/bitcoin/data/bitcoin.conf -daemon
+ExecStop=/opt/bitcoin/bitcoin-{{ bitcoin_version }}/bin/bitcoin-cli -datadir=/opt/bitcoin/data -conf=/opt/bitcoin/data/bitcoin.conf stop && /bin/rm -rf /opt/bitcoin/bitcoind.pid
 KillMode=process
 Restart=always
 TimeoutSec=120

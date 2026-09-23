@@ -1,0 +1,15 @@
+---
+bitcoin_version: "29.4"
+fulcrum_version: "2.1.2"
+
+maxconnections: 15
+maxuploadtarget: 5000
+
+datacarrier: 0
+datacarriersize: 0
+
+maxmempool: 300
+limitancestororsize: 101
+limitdescendantorsize: 101
+maxorphancache: 100
+dustlimit: 546

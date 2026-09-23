@@ -1,26 +1,26 @@
-- name: download bitcoin-core {{ version }}
+- name: download bitcoin-core {{ bitcoin_version }}
   get_url:
-    url: https://bitcoin.org/bin/bitcoin-core-{{ version }}/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
-    dest: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    url: https://bitcoincore.org/bin/bitcoin-core-{{ bitcoin_version }}/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz
+    dest: /tmp/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz
   tags:
     - bitcoin-core
 
 - name: download bitcoin-core via tor
-  command: torsocks curl -s -L -o /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz https://bitcoin.org/bin/bitcoin-core-{{ version }}/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+  command: torsocks curl -s -L -o /tmp/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz https://bitcoincore.org/bin/bitcoin-core-{{ bitcoin_version }}/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz
   args:
-    creates: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    creates: /tmp/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz
   tags:
     - bitcoin-core
 
 - name: download sha256sums via tor
-  command: torsocks curl -s -L -o /tmp/SHA256SUMS https://bitcoin.org/bin/bitcoin-core-{{ version }}/SHA256SUMS
+  command: torsocks curl -s -L -o /tmp/SHA256SUMS https://bitcoincore.org/bin/bitcoin-core-{{ bitcoin_version }}/SHA256SUMS
   args:
     creates: /tmp/SHA256SUMS
   tags:
     - bitcoin-core
 
 - name: download signatures via tor
-  command: torsocks curl -s -L -o /tmp/SHA256SUMS.asc https://bitcoin.org/bin/bitcoin-core-{{ version }}/SHA256SUMS.asc
+  command: torsocks curl -s -L -o /tmp/SHA256SUMS.asc https://bitcoincore.org/bin/bitcoin-core-{{ bitcoin_version }}/SHA256SUMS.asc
   args:
     creates: /tmp/SHA256SUMS.asc
   tags:
@@ -70,9 +70,9 @@
   tags:
     - bitcoin-core
 
-- name: extract bitcoin-core {{ version }}
+- name: extract bitcoin-core {{ bitcoin_version }}
   unarchive:
-    src: /tmp/bitcoin-{{ version }}-x86_64-linux-gnu.tar.gz
+    src: /tmp/bitcoin-{{ bitcoin_version }}-x86_64-linux-gnu.tar.gz
     dest: /opt/bitcoin
     owner: bitcoin
     group: bitcoin
@@ -80,7 +80,7 @@
   tags:
     - bitcoin-core
 
-- name: check bitccoin-core {{ version }} signatures
+- name: check bitcoin-core {{ bitcoin_version }} signatures
   become: yes
   become_user: bitcoin
   command: gpg --verify /tmp/SHA256SUMS.asc
@@ -97,7 +97,7 @@
     dest: /opt/bitcoin/data/bitcoin.conf
     owner: bitcoin
     group: bitcoin
-    mode: '0644'
+    mode: '0600'
   tags:
     - bitcoin-core
 
