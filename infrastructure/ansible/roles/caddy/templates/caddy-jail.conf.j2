@@ -11,7 +11,7 @@ maxretry = 5
 findtime = 60
 bantime = 600
 port = http,https
-backend = systemd
+backend = auto
 
 [caddy-attack]
 # Blocks IP addresses hitting protected resources (403 errors)
@@ -24,7 +24,7 @@ maxretry = 3
 findtime = 60
 bantime = 3600
 port = http,https
-backend = systemd
+backend = auto
 
 [caddy-invalid]
 # Blocks IP addresses scanning invalid hosts/virtual hosts
@@ -36,7 +36,7 @@ maxretry = 5
 findtime = 60
 bantime = 600
 port = http,https
-backend = systemd
+backend = auto
 
 [caddy-aggressive]
 # Extra aggressive protection combining all indicators
@@ -48,4 +48,17 @@ maxretry = 10
 findtime = 300
 bantime = 86400
 port = http,https
-backend = systemd
+backend = auto
+
+[caddy-envscan]
+# Blocks IP addresses scanning for .env files (common security probe)
+# Immediate ban on first attempt - these are always malicious
+enabled = true
+filter = caddy-envscan
+logpath = /var/log/caddy/*.access.log
+maxretry = 1
+findtime = 60
+bantime = 3600
+port = http,https
+backend = auto
+action = nftables[table="f2b-caddy"]

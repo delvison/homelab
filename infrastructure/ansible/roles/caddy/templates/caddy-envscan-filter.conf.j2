@@ -1,0 +1,12 @@
+# Fail2ban filter for Caddy .env file scanning
+# Detects attempts to access .env files (common security probe)
+
+[Definition]
+
+failregex = ^.*"remote_ip":"<HOST>".*"uri":".*\.env.*"
+
+ignoreregex =
+
+datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]%%d{2}:?%%d{2})?
+
+[Init]

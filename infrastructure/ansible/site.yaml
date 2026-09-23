@@ -63,3 +63,13 @@
     - rclone-mount
   tags:
     - rustfs
+
+- name: Install caddy
+  hosts: caddy
+  vars_files:
+    - "./vars/vault.yml"
+  become: true
+  roles:
+    - caddy
+  tags:
+    - caddy

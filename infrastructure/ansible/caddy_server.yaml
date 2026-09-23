@@ -6,7 +6,7 @@
   hosts: caddy
   vars:
     # https://github.com/caddyserver/caddy/releases/
-    caddy_version: 2.10.0
+    caddy_version: 2.11.4
   vars_files:
     - "./vars/vault.yml"
   roles:

@@ -84,6 +84,15 @@
     mode: '0644'
   notify: Reload fail2ban
 
+- name: Deploy Caddy .env scan fail2ban filter
+  template:
+    src: templates/caddy-envscan-filter.conf.j2
+    dest: /etc/fail2ban/filter.d/caddy-envscan.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload fail2ban
+
 - name: Deploy Caddy fail2ban jail
   template:
     src: templates/caddy-jail.conf.j2
