@@ -1,0 +1,59 @@
+---
+networks:
+  1time-net:
+    driver: bridge
+
+volumes:
+  1time-data:
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: 1time-redis
+    restart: unless-stopped
+    networks:
+      - 1time-net
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --appendonly
+      - "no"
+      - --dir
+      - /data
+      - --dbfilename
+      - dump.rdb
+    volumes:
+      - 1time-data:/data
+
+  backend:
+    image: ghcr.io/shingrus/1time-backend:latest
+    container_name: 1time-backend
+    restart: unless-stopped
+    networks:
+      - 1time-net
+    environment:
+      LISTEN_ADDR: 0.0.0.0:8080
+      REDISHOST: redis:6379
+      REDISPASS: ""
+      FILE_STORAGE_DIR: /data/files
+    volumes:
+      - 1time-data:/data
+    depends_on:
+      - redis
+
+  web:
+    image: ghcr.io/shingrus/1time-web:latest
+    container_name: 1time-web
+    restart: unless-stopped
+    networks:
+      - 1time-net
+    environment:
+      APP_HOSTNAME: ${APP_HOSTNAME:-1time.io}
+      NGINX_PORT: 8080
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-backend:8080}
+    depends_on:
+      - backend
+    ports:
+      - "${APP_PORT:-8080}:8080"
