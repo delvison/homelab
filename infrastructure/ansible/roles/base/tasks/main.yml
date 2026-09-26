@@ -5,7 +5,7 @@
     name: "{{ item }}"
   with_items:
     - sudo
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: add group
   ansible.builtin.group:
@@ -62,13 +62,13 @@
   become: true
   ansible.builtin.apt:
     name: rsyslog
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: install "ufw" package
   become: true
   ansible.builtin.apt:
     name: ufw
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - ufw:
     rule: allow
@@ -92,17 +92,17 @@
   apt:
     name: fail2ban
     state: present
-  when: ansible_os_family == "Debian"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install fail2ban
   yum:
     name: fail2ban
     state: present
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Configure SSH jail
   blockinfile:
-    path: /etc/fail2ban/jail.conf
+    path: /etc/fail2ban/jail.d/ansible-sshd.conf
     marker: "# {mark} ANSIBLE MANAGED BLOCK"
     block: |
       [sshd]
@@ -111,9 +111,9 @@
       logpath = /var/log/auth.log
       maxretry = 3
       bantime = 600
-    insertafter: "[sshd]"
+    create: true
   notify: restart fail2ban
-  when: ansible_os_family == "Debian"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Configure SSH jail
   lineinfile:
@@ -126,10 +126,54 @@
            bantime = 600"
     state: present
   notify: restart fail2ban
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts["os_family"] == "RedHat"
+
+- name: Configure fail2ban tailnet jail
+  blockinfile:
+    path: /etc/fail2ban/jail.d/ansible-tailnet.conf
+    marker: "# {mark} ANSIBLE TAILNET BLOCK"
+    block: |
+      [sshd-tailnet]
+      enabled = true
+      port = 22
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+      bantime = 3600
+      banaction = iptables-allports
+      backend = auto
+    create: true
+  notify: restart fail2ban
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install qemu-guest-agent on VM hosts
   package:
     name: qemu-guest-agent
     state: present
   when: "'vm' in group_names"
+
+- name: Install unattended-upgrades
+  apt:
+    name: unattended-upgrades
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Configure auto-updates
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: '0644'
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Install logwatch
+  apt:
+    name: logwatch
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Configure logwatch
+  template:
+    src: logwatch.conf.j2
+    dest: /etc/logwatch/conf/logwatch.conf
+    mode: '0644'
+  when: ansible_facts["os_family"] == "Debian"

@@ -1,0 +1,21 @@
+---
+- hosts: all
+  become: true
+  pre_tasks:
+    - name: update repository index (ubuntu)
+      tags: always
+      apt:
+        update_cache: yes
+      changed_when: false
+      when: ansible_facts["distribution"] == "Ubuntu"
+
+- hosts: docker_hosts
+  vars_files:
+    - "./vars/vault.yml"
+  become: true
+  roles:
+    - base
+    - docker_hosts
+    - tailscale
+  tags:
+    - docker

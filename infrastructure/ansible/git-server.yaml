@@ -8,7 +8,7 @@
       apt:
         update_cache: yes
       changed_when: false
-      when: ansible_distribution == "Ubuntu"
+      when: ansible_facts["distribution"] == "Ubuntu"
 
 - hosts: git-server
   become: true

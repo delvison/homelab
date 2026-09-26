@@ -4,7 +4,7 @@
       - curl
       - unzip
     state: present
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: Create Caddy log directory
   file:
@@ -24,13 +24,13 @@
   get_url:
     url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_amd64.deb"
     dest: /tmp/caddy_{{ caddy_version }}_linux_amd64.deb
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: Install Caddy deb file
   apt:
     deb: /tmp/caddy_{{ caddy_version }}_linux_amd64.deb
     state: present
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: Change ownership of /etc/caddy to caddy:caddy
   file:
@@ -73,7 +73,7 @@
   apt:
     name: fail2ban
     state: present
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: Deploy Caddy fail2ban filter
   template:

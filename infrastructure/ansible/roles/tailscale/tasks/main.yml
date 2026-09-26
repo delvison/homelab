@@ -4,7 +4,7 @@
     url:  https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg 
     mode: '0444'
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: add tailscale repo
   become: true
@@ -12,7 +12,7 @@
     url: https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list 
     dest: /etc/apt/sources.list.d/tailscale.list
     mode: '0444'
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: install tailscale packages
   become: true
@@ -21,4 +21,4 @@
     update_cache: true
   with_items:
     - tailscale
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"

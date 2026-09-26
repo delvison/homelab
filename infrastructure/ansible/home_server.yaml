@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: server
   become: true
   pre_tasks:
     - name: update repository index (ubuntu)
@@ -7,16 +7,16 @@
       apt:
         update_cache: yes
       changed_when: false
-      when: ansible_distribution == "Ubuntu"
+      when: ansible_facts["distribution"] == "Ubuntu"
 
-- hosts: all
+- hosts: server
   vars_files:
     - "./vars/vault.yml"
   become: true
   roles:
     - base
 
-- hosts: all
+- hosts: server
   vars_files:
     - "./vars/vault.yml"
   become: true
@@ -25,7 +25,7 @@
   tags:
     - docker
 
-- hosts: all
+- hosts: server
   vars_files:
     - "./vars/vault.yml"
   become: true
@@ -34,16 +34,9 @@
   tags:
     - tailscale
 
-- name: Install bitcoin-core
-  become: true
-  hosts: all
-  vars:
-    version: "27.0" # https://bitcoin.org/en/download
-    fulcrum_version: "1.11.1"
+- hosts: server
   vars_files:
     - "./vars/vault.yml"
+  become: true
   roles:
-    - bitcoin-core
-  tags:
-    - bitcoin-core
-    - fulcrum
+    - node_exporter

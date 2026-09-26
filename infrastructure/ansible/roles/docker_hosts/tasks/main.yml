@@ -5,7 +5,7 @@
   with_items:
     - ca-certificates
     - curl
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: install sudo
   become: true
@@ -13,14 +13,14 @@
     name: "{{ item }}"
   with_items:
     - sudo
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: Create the /etc/apt/keyrings directory
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: 0755
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: download docker keys
   become: true
@@ -31,12 +31,12 @@
 
 - name: add docker repository to apt
   ansible.builtin.shell: echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-  when: ansible_distribution == "Ubuntu"
+  when: ansible_facts["distribution"] == "Ubuntu"
 
 - name: add docker repository to apt
   become: true
   ansible.builtin.shell: echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  when: ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Debian"
 
 - name: install docker packages
   become: true
@@ -49,7 +49,7 @@
     - containerd.io 
     - docker-buildx-plugin 
     - docker-compose-plugin
-  when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
 
 - name: install cgroup packages
   become: true
@@ -60,7 +60,7 @@
     - cgroup-tools 
     - cgroupfs-mount 
     # - libcgroup1
-  when: ansible_distribution == "Ubuntu"
+  when: ansible_facts["distribution"] == "Ubuntu"
 
 - name: Add docker user
   become: true
