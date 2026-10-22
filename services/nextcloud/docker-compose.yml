@@ -32,7 +32,7 @@ services:
 
   nextcloud-app:
     container_name: nextcloud
-    image: nextcloud:32
+    image: nextcloud:35
     user: ${UID}:${GID}
     restart: always
     ports:
