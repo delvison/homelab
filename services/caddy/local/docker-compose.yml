@@ -137,6 +137,72 @@ services:
             }
           }
 
+          # servarr stack: no `cache`, these are authenticated dynamic UIs
+          @bazarr host bazarr.local.${DOMAIN}
+          handle @bazarr {
+            reverse_proxy ${SERVER}:6767 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
+          @lidarr host lidarr.local.${DOMAIN}
+          handle @lidarr {
+            reverse_proxy ${SERVER}:8686 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /ping
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
+          @prowlarr host prowlarr.local.${DOMAIN}
+          handle @prowlarr {
+            reverse_proxy ${SERVER}:9696 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /ping
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
+          @radarr host radarr.local.${DOMAIN}
+          handle @radarr {
+            reverse_proxy ${SERVER}:7878 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /ping
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
+          @sonarr host sonarr.local.${DOMAIN}
+          handle @sonarr {
+            reverse_proxy ${SERVER}:8989 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /ping
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
           @navidrome host navidrome.local.${DOMAIN}
           handle @navidrome {
             reverse_proxy ${SERVER3}:4553 {
