@@ -1,0 +1,388 @@
+---
+networks:
+  # NOTE: must run this first: `docker network create proxy`
+  proxy:
+    external: true
+# sudo apt install nfs-common
+volumes:
+  audiobooks-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/30_Media/33_Books/Audiobooks/"
+  books-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/30_Media/33_Books/Ebooks/"
+  downloads-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/dl/"
+  movies-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/30_Media/32_Film/Movies/"
+  music-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/30_Media/34_Audio/Music/"
+  tv-vol:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_DOMAIN},nolock,soft,rw"
+      device: ":/volume1/shared/30_Media/32_Film/TV/"
+services:
+  # protonvpn:
+  #   image: ghcr.io/tprasadtp/protonvpn:7.2.1
+  #   container_name: arr-protonvpn
+  #   environment:
+  #     PROTONVPN_USERNAME: "${PROTONVPN_USERNAME}"
+  #     PROTONVPN_PASSWORD: "${PROTONVPN_PASSWORD}"
+  #     WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY}"
+  #     PROTONVPN_SERVER: "IS#1"
+  #     PROTONVPN_TIER: 2
+  #     PROTONVPN_EXCLUDE_CIDRS: "192.168.0.1/16"
+  #     PROTONVPN_DNS_LEAK_PROTECT: 1
+  #     IPCHECK_URL: https://ifconfig.me/ip
+  #   restart: unless-stopped
+  #   cap_add:
+  #     - NET_ADMIN
+  #   devices:
+  #     - /dev/net/tun:/dev/net/tun
+  #   # Expose payload container's port here!
+  #   expose:
+  #     - 9696 # prowlarr
+  #     - 8787 # readarr
+  #     - 8989 # sonarr
+  #     - 7878 # radarr
+  #     - 8686 # lidarr
+  #     - 7575 # homarr
+  #   ports:
+  #     - 9696:9696 # prowlarr
+  #     - 8787:8787 # readarr
+  #     - 8989:8989 # sonarr
+  #     - 7878:7878 # radarr
+  #     - 8686:8686 # lidarr
+  #     - 7575:7575 # homarr
+  #   healthcheck:
+  #     test: curl --fail https://ifconfig.me || exit 1
+  #     interval: 60s
+  #     retries: 5
+  #     start_period: 20s
+  #     timeout: 10s
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=false"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.50'
+  #         memory: 512M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "1m"
+  #       max-file: "1"
+
+  prowlarr:
+    networks: 
+      - proxy
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_DIR:-.}/prowlarr/config:/config
+    restart: unless-stopped
+    # network_mode: service:protonvpn
+    healthcheck:
+      test: curl --fail http://localhost:9696 || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+    ports:
+      - 9696:9696
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  # NOTE: readarr retired upstream (2025); ghcr.io/hotio/readarr no longer exists.
+  # Use the maintained fork if needed: ghcr.io/pennydreadful/bookshelf:hardcover
+  # readarr:
+  #   networks: 
+  #     - proxy
+  #   container_name: readarr
+  #   image: ghcr.io/hotio/readarr
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=Etc/UTC
+  #   volumes:
+  #     - ${BASE_DIR:-.}/readarr/config:/config
+  #     - books-vol:/books
+  #     - audiobooks-vol:/audiobooks
+  #     - downloads-vol:/data
+  #   restart: unless-stopped
+  #   # network_mode: service:protonvpn
+  #   healthcheck:
+  #     test: curl --fail http://localhost:8787 || exit 1
+  #     interval: 60s
+  #     retries: 5
+  #     start_period: 20s
+  #     timeout: 10s
+  #   ports:
+  #     - 8787:8787
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=true"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.50'
+  #         memory: 512M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "1m"
+  #       max-file: "1"
+
+  sonarr:
+    networks: 
+      - proxy
+    container_name: sonarr
+    image: ghcr.io/hotio/sonarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_DIR:-.}/sonarr/config:/config
+      - tv-vol:/tv
+      - downloads-vol:/data
+    restart: unless-stopped
+    # network_mode: service:protonvpn
+    healthcheck:
+      test: curl --fail http://localhost:8989 || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+    ports:
+      - 8989:8989
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  radarr:
+    networks: 
+      - proxy
+    container_name: radarr
+    image: ghcr.io/hotio/radarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_DIR:-.}/radarr/config:/config
+      - movies-vol:/movies
+      - downloads-vol:/data
+    restart: unless-stopped
+    # network_mode: service:protonvpn
+    healthcheck:
+      test: curl --fail http://localhost:7878 || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+    ports:
+      - 7878:7878
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  lidarr:
+    networks: 
+      - proxy
+    container_name: lidarr
+    image: ghcr.io/hotio/lidarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_DIR:-.}/lidarr/config:/config
+      - music-vol:/music
+      - downloads-vol:/data
+    restart: unless-stopped
+    # network_mode: service:protonvpn
+    healthcheck:
+      test: curl --fail http://localhost:8686 || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+    ports:
+      - 8686:8686
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  # subtitles
+  bazarr:
+    networks: 
+      - proxy
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_DIR:-.}/bazaar/config:/config
+      - tv-vol:/tv
+      - movies-vol:/movies
+      - downloads-vol:/data
+    ports:
+      - 6767:6767
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://localhost:6767 || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  # IPTV stream management: M3U/EPG proxy, DVR, HDHomeRun emulation for Jellyfin.
+  # Docs: https://dispatcharr.github.io/Dispatcharr-Docs/
+  # AIO mode bundles postgres + redis inside the container; /data holds the DB,
+  # cache, logs and the generated JWT secret, so back it up.
+  dispatcharr:
+    networks:
+      - proxy
+    image: ghcr.io/dispatcharr/dispatcharr:latest
+    container_name: dispatcharr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      # DVR schedules and EPG times are rendered in this zone, so it must match
+      # the local timezone rather than the Etc/UTC used by the *arr services.
+      - TZ=${TZ:-Etc/UTC}
+      - DISPATCHARR_ENV=aio
+      - DISPATCHARR_LOG_LEVEL=info
+      # uWSGI + Celery default to 4 and 6 workers, which alongside the bundled
+      # postgres and redis overshoots the 2G limit below. Trim both.
+      - UWSGI_WORKERS=2
+      - CELERY_MAX_WORKERS=3
+      - CELERY_MIN_WORKERS=1
+      # Caddy proxies from its own private LAN address, which Dispatcharr's
+      # default trusted-proxy set (private/loopback) already covers, so client
+      # IPs reach the Network Access rules correctly. Do not set
+      # DISPATCHARR_TRUSTED_PROXIES=none: every client would then be logged and
+      # rate-limited as the proxy itself.
+    volumes:
+      - ${BASE_DIR:-.}/dispatcharr/data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://localhost:9191/ || exit 1
+      interval: 60s
+      retries: 5
+      # first boot runs migrations and initialises postgres
+      start_period: 120s
+      timeout: 10s
+    ports:
+      - 9191:9191
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          # bundled postgres + redis + uwsgi (2) + celery (<=3)
+          cpus: '2.00'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # homarr:
+  #   container_name: homarr
+  #   image: ghcr.io/ajnart/homarr:latest
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ${BASE_DIR:-.}/homarr/configs:/app/data/configs
+  #     - ${BASE_DIR:-.}/homarr/icons:/app/public/icons
+  #     - ${BASE_DIR:-.}/homarr/data:/data
+  #   restart: unless-stopped
+  #   # network_mode: service:protonvpn
+  #   healthcheck:
+  #     test: curl --fail http://localhost:7575 || exit 1
+  #     interval: 60s
+  #     retries: 5
+  #     start_period: 20s
+  #     timeout: 10s
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=true"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.50'
+  #         memory: 512M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "1m"
+  #       max-file: "1"

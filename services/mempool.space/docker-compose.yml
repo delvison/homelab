@@ -22,6 +22,10 @@ services:
     command: "./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'"
     ports:
       - 8050:8050
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
@@ -36,9 +40,9 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 1280M
+          memory: 2048M
     environment:
-      MEMPOOL_BACKEND: "none"
+      MEMPOOL_BACKEND: "electrum"
       ELECTRUM_HOST: "${ELECTRUM_HOST}"
       ELECTRUM_PORT: "50002"
       ELECTRUM_TLS_ENABLED: "true"
@@ -52,7 +56,16 @@ services:
       DATABASE_USERNAME: "${DATABASE_USERNAME}"
       DATABASE_PASSWORD: "${DATABASE_PASSWORD}"
       STATISTICS_ENABLED: "true"
+    depends_on:
+      - db
+      - tor
+      - electrum-tor
+      - core-rpc
     image: mempool/backend:${MEMPOOL_BACKEND_VERSION:-latest}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     # user: "1002:${GID}"
     restart: always
     stop_grace_period: 1m
@@ -73,13 +86,18 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 256M
+          memory: 1024M
     environment:
       MYSQL_DATABASE: "mempool"
       MYSQL_USER: "${DATABASE_USERNAME}"
       MYSQL_PASSWORD: "${DATABASE_PASSWORD}"
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
-    image: mariadb:10.5.21
+    image: mariadb:10.11
+    command: --innodb_buffer_pool_size=768M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     user: "1002:${GID}"
     restart: always
     stop_grace_period: 1m
@@ -87,6 +105,70 @@ services:
       - ${BASE_DIR:-.}/mysql/data:/var/lib/mysql
     networks:
       - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+  tor:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: 128M
+    image: btcpayserver/tor:0.4.8.10
+    security_opt:
+      - no-new-privileges:true
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+  electrum-tor:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: 64M
+    image: alpine/socat:latest
+    command: "TCP-LISTEN:50002,fork,reuseaddr SOCKS5-CONNECT:tor:9050:${ELECTRUM_ONION}:50002"
+    depends_on:
+      - tor
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - mempool
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+  core-rpc:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: 64M
+    image: alpine/socat:latest
+    network_mode: host
+    command: "TCP-LISTEN:8332,bind=172.23.0.1,fork,reuseaddr TCP:127.0.0.1:8332"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     logging:
       driver: "json-file"
       options:
