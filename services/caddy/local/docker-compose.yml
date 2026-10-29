@@ -316,6 +316,20 @@ services:
             }
           }
 
+          @registry host registry.local.${DOMAIN}
+          handle @registry {
+            # No `cache`: image blobs are content-addressed and large.
+            reverse_proxy ${REGISTRY}:5000 {
+              header_up X-Forwarded-For {remote_host}
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Proto {scheme}
+              health_uri /v2/
+              health_interval 30s
+              health_timeout 5s
+              health_status 200
+            }
+          }
+
           # default
           respond "No page found" 404
         }
