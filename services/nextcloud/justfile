@@ -10,3 +10,6 @@ set-context:
 deploy: set-context
   docker compose pull
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
+
+save-secrets:
+  sops -e .env > .env.enc
