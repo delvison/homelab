@@ -1,0 +1,239 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Edge requests / s",
+      "description": "All statuses, edge only.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(caddy_access_requests_total{environment=\"edge\"}[5m]))",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Blocked / s (status 0)",
+      "description": "Closed connections: Caddy's block rules and client aborts.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(caddy_access_requests_total{environment=\"edge\",status=\"0\"}[5m]))",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "5xx / s",
+      "description": "Server errors at the edge.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.5 }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(caddy_access_requests_total{environment=\"edge\",status=~\"5..\"}[5m])) or vector(0)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Requests by status",
+      "description": "One line per HTTP status.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": [] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(caddy_access_requests_total{environment=\"edge\"}[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Requests by host",
+      "description": "One line per TLS server name.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": [] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (server_name) (rate(caddy_access_requests_total{environment=\"edge\"}[5m]))",
+          "legendFormat": "{{server_name}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "bargauge",
+      "title": "Top URI classes (1h)",
+      "description": "First path segment; scanners generate many.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": { "mode": "continuous-GrYlRd" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (uri_class) (increase(caddy_access_requests_total{environment=\"edge\"}[1h])))",
+          "instant": true,
+          "legendFormat": "{{uri_class}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Firing alerts",
+      "description": "Prometheus alert state, firing only.",
+      "datasource": { "type": "prometheus", "uid": "eeo3k7o8vx0jkc" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": []
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true },
+            "renameByName": {}
+          }
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": ["security", "caddy", "edge"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "title": "Security",
+  "uid": "homelab-security",
+  "version": 1
+}

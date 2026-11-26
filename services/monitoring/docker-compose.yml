@@ -76,6 +76,8 @@ services:
     volumes:
       - ${BASE_DIR:-.}/grafana/data:/var/lib/grafana
       - ${BASE_DIR:-.}/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ${BASE_DIR:-.}/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ${BASE_DIR:-.}/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - type: tmpfs
         target: /var/lib/grafana/sessions
         tmpfs:
