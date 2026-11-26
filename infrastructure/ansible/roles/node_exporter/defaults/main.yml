@@ -1,0 +1,18 @@
+---
+node_exporter_version: "1.8.2"
+node_exporter_package: "node_exporter-{{ node_exporter_version }}.linux-amd64"
+node_exporter_tarball: "{{ node_exporter_package }}.tar.gz"
+node_exporter_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/{{ node_exporter_tarball }}"
+node_exporter_install_dir: "/usr/local/bin"
+node_exporter_user: "node-exporter"
+node_exporter_port: 9100
+# ufw denies every other source.
+node_exporter_scrape_source: "192.168.1.180"
+node_exporter_textfile_dir: "/var/lib/node_exporter/textfile_collector"
+
+node_exporter_install_method: "package"
+
+node_exporter_enable_nvme_metrics: true
+node_exporter_enable_temperature_metrics: true
+node_exporter_enable_disk_io_metrics: true
+node_exporter_host: "{{ ansible_hostname }}"

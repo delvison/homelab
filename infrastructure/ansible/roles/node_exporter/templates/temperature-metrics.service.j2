@@ -1,0 +1,9 @@
+[Unit]
+Description=Collect temperature metrics for Prometheus
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/collect-temperature-metrics.sh
+User=root
+Group=root
