@@ -338,9 +338,9 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   # Dead-man's switch: pings healthchecks only while the edge answers, so a
-  # missing ping means the edge or this host is down. Delivery goes through the
-  # house ntfy, so it does not depend on the VPS. HC_PING_URL must be the
-  # https://<name> form: healthchecks answers 400 to a bare IP:8095.
+  # missing ping means the edge or this host is down. Delivery is the VPS ntfy,
+  # so a dead VPS is detected but never announced. HC_PING_URL must be the
+  # https://<name> form: healthchecks answers 400 on a bare IP:8095.
   heartbeat:
     image: alpine:3.19
     container_name: heartbeat

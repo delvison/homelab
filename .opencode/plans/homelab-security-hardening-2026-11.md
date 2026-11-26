@@ -37,7 +37,7 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | — | `del` granted read-only on `security` (manual, not in Ansible) | **done, out-of-band** — see §0.3 |
 | — | 1.3 deploy | logwatch timer on the home hosts | **not deployed** — units absent on `server` and `proxmox` |
 | 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **code done** — `promtool` 3 rules; deploy pending |
-| — | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **code done** — needs a house ntfy credential, a healthchecks check, and two `.env` values |
+| — | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **code done** — ntfy integration done; needs the check, an `alerting` token on the VPS, and the two values in `services/monitoring/.env` |
 | — | 1.7 | security dashboard | not started |
 | — | 2–9 | see below | not started |
 
@@ -399,11 +399,17 @@ Record results in §4 before Phase 1.
    through the very boundary Phase 2 closes. Instead a `heartbeat` container on
    the monitoring host (`.180`) pings `healthchecks` (`.224`) **only while the
    VPS `/v1/health` answers**, every 10 minutes:
-   - VPS dead or its ntfy dead → no ping → healthchecks reports it.
-   - monitoring host dead → no ping → same alert, from a different host.
-   - delivery: healthchecks → **house ntfy** (`.224:12500`), which does not
-     depend on the VPS or on `.180`. That is why a house ntfy credential is
-     needed; without it the alert would be published to the dead VPS.
+   - VPS dead or its ntfy dead → no ping → healthchecks marks the check down.
+   - monitoring host dead → no ping → same check, from a different host.
+   - delivery: healthchecks → **VPS ntfy** (public `alerts` topic, dedicated
+     `alerting` user with write-only on `alerts`). This was chosen over a house
+     ntfy token to avoid a second credential set and a second subscription on
+     the phone. It costs the case it was designed for: if the VPS dies,
+     healthchecks records the missing heartbeat but cannot announce it. What it
+     still covers is `.180` dying and the heartbeat itself breaking — neither
+     has any other alert path. Upgrade path: add a second healthchecks
+     integration pointed at the house ntfy (`server:12500`) so the VPS-death
+     case is delivered too; the heartbeat needs no change.
    Traffic is house→VPS and house→house, so no new inbound path to the house.
    Needs two `.env` values (`EDGE_URL`, `HC_PING_URL`); compose refuses to start
    the service without them rather than silently sending nothing.
