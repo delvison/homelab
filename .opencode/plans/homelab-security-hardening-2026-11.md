@@ -412,7 +412,12 @@ Record results in §4 before Phase 1.
      case is delivered too; the heartbeat needs no change.
    Traffic is house→VPS and house→house, so no new inbound path to the house.
    Needs two `.env` values (`EDGE_URL`, `HC_PING_URL`); compose refuses to start
-   the service without them rather than silently sending nothing.
+   the service without them rather than silently sending nothing. `HC_PING_URL`
+   must use the LAN-caddy name, and the service pins that name in `extra_hosts`
+   (`192.168.1.178`): the monitoring host's resolver answers NXDOMAIN for the
+   LAN zone (2026-11-26: `nslookup` returned the CNAME then NXDOMAIN, `wget`
+   reported `bad address`), so a bare lookup there never works. Cost: a pinned
+   address — moving the LAN proxy needs a one-line edit here.
    Not covered: `.224` dying (it hosts ntfy, gatus and healthchecks, so nothing
    house-side can speak — Prometheus on `.180` still alerts through the VPS),
    and the whole house going dark. Both are visible to a human.
