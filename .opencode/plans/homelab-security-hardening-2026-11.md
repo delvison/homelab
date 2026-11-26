@@ -37,7 +37,7 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | 1.3 deploy | logwatch timer on the home hosts | **deployed 2026-11-26** — delivery proven by 200s from all three hosts |
 | 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **deployed** — `promtool` 3 rules on the host; 4000 `host_name="vps"` series confirm the data |
 | 2026-11-26 | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **deployed** — check and token in place, ping confirmed; the alarm leg is accepted untested |
-| 2026-11-26 | — | proxmox's `9100` was blocked by **ufw** (not pve-firewall, which is disabled); the rule now lives in `roles/node_exporter` | **code done** — run the playbook with `-K` |
+| 2026-11-26 | — | proxmox's `9100` was blocked by **ufw** (not pve-firewall, which is disabled); the rule now lives in `roles/node_exporter` | **applied and verified** — ufw rule present, `NodeExporterDown` resolved |
 | 2026-11-26 | — | `CaddyHighUpstreamLatency` deleted: Caddy's `handler` label is `subroute` on every nested route, so the alert named nothing | **deployed** — 4 rules loaded, alert resolved |
 | — | 1.7 | security dashboard | not started |
 | — | 2–9 | see below | not started |
