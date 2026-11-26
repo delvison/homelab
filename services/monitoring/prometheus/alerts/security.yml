@@ -1,0 +1,46 @@
+groups:
+  - name: security
+    interval: 30s
+    rules:
+      # The edge's 4xx/5xx signal. fail2ban bans page on their own through the
+      # ntfy action; there is no fail2ban metric yet (finding P), so no ban
+      # rule here.
+      - alert: Caddy403Burst
+        expr: sum(rate(caddy_access_requests_total{status="403"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Caddy is denying {{ $value | printf \"%.1f\" }} requests/s with 403"
+          description: "Sustained 403s for 5 minutes: a scanner is being denied, or an access rule now rejects legitimate traffic."
+
+      - alert: Caddy429Burst
+        expr: sum(rate(caddy_access_requests_total{status="429"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Caddy rate limiting is firing at {{ $value | printf \"%.1f\" }}/s"
+          description: "Sustained 429s for 5 minutes: something is being throttled hard, either an attack or a client stuck in a retry loop."
+
+      - alert: Caddy5xxRate
+        expr: sum(rate(caddy_access_requests_total{status=~"5.."}[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Caddy is serving 5xx at {{ $value | printf \"%.2f\" }}/s"
+          description: "Sustained server errors for 10 minutes, so an upstream is failing or Caddy itself is unhealthy."
+
+      # No requests at all for 15 minutes. Either the internet is down or the
+      # VPS log shipper died; the dead-man's switch (Phase 1.6) is what proves
+      # which. Gatus probes the edge, so this should only fire when the whole
+      # public path is broken.
+      - alert: CaddyNoTraffic
+        expr: sum(increase(caddy_access_requests_total{host_name="vps"}[15m])) == 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The VPS edge received no HTTPS requests for 15 minutes"
+          description: "The public edge is either unreachable or its log shipper stopped exporting."

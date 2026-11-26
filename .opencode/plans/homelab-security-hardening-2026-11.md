@@ -36,7 +36,8 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | 1.2 incident | The new jails banned the home WAN from 80/443 (NAT, one address). Unbanned and added it to `caddy_fail2ban_ignoreip` | **resolved** — see `Logbook/2026-11-25` 23:22 |
 | 2026-11-25 | — | `del` granted read-only on `security` (manual, not in Ansible) | **done, out-of-band** — see §0.3 |
 | — | 1.3 deploy | logwatch timer on the home hosts | **not deployed** — units absent on `server` and `proxmox` |
-| — | 1.5–1.7 | security alert rules, dead-man's switch, dashboard | not started |
+| 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: 403/429 bursts, 5xx rate, `CaddyNoTraffic` | **code done** — validated with `promtool check rules` (4 rules); not deployed |
+| — | 1.6–1.7 | dead-man's switch, security dashboard | not started |
 | — | 2–9 | see below | not started |
 
 **Deviations from the plan as written.** Read these before implementing 1.5 and
@@ -313,7 +314,7 @@ Record results in §4 before Phase 1.
    cardinality bounded, `sum()` rising monotonically across generated requests,
    zero `remote_ip`/`client_ip` series, and `caddy_http_requests_total` back to
    carrying only Caddy's own series.
-5. **Alertmanager security rules**
+5. **[code done 2026-11-26] Alertmanager security rules**
    (`services/monitoring/prometheus/alerts/security.yml`):
 
    ```yaml
@@ -353,6 +354,29 @@ Record results in §4 before Phase 1.
    be checked against `caddy_metrics` (or scraped from the cert files) rather
    than assumed. Route the group to `ntfy`; extend
    `alertmanager.template.yml`.
+
+   **As built (2026-11-26):** 4 rules, validated with
+   `promtool check rules` from the prod image (`prom/prometheus:v2.55.0`). Two
+   deviations from the sketch:
+   - `Fail2banBanSpike` is **not** included. `fail2ban_banned_current` does not
+     exist, and a rule over a missing metric can never fire — dead config that
+     looks like coverage. Bans page through the fail2ban ntfy action instead
+     (Phase 1.2). Add the rule when finding P ships an exporter.
+   - No `alertmanager.template.yml` change is needed: `receiver: ntfy` is
+     already the default route and `alertmanager-ntfy` publishes to topic
+     `alerts`. So these rules land in **`alerts`**, while fail2ban bans land in
+     **`security`**. That split is fine (different blast radius, different
+     priority) but it means one incident can show up in two places.
+   401 is deliberately absent: the public site is behind basic auth, so a
+   credential-stuffing burst is a 401 burst, not a 403 — and every unauthenticated
+   visitor produces 401s too, so it is the noisiest rule of the set. Worth
+   adding only with a per-host threshold.
+
+   Deploy: `just deploy` in `services/monitoring` (pushes `prometheus/` and
+   force-recreates), or reload only: `curl -X POST -u admin:$PASS
+   http://<monitoring>:9090/-/reload`. Verify: `promtool` output above, then
+   `/api/v1/rules?type=alert` shows the `security` group; no rule should be in
+   `pending`/`firing` on quiet traffic.
 6. **Dead-man's switch**: `vps` cron pings self-hosted `healthchecks` daily; a miss
    alerts. So "no alert" cannot mean "agent died".
 7. **Grafana dashboard** `security.json`: bans over time, top offending IPs,
