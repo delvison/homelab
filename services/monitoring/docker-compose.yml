@@ -337,10 +337,10 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
-  # Dead-man's switch. Pings healthchecks only while the VPS edge and its ntfy
-  # answer, so a missing ping means either the edge or this host is down.
-  # healthchecks runs on another house host and reports through the house ntfy,
-  # so neither the alert nor its delivery depends on the VPS.
+  # Dead-man's switch: pings healthchecks only while the edge answers, so a
+  # missing ping means the edge or this host is down. Delivery goes through the
+  # house ntfy, so it does not depend on the VPS. HC_PING_URL must be the
+  # https://<name> form: healthchecks answers 400 to a bare IP:8095.
   heartbeat:
     image: alpine:3.19
     container_name: heartbeat
@@ -353,8 +353,8 @@ services:
       - -c
       - |
         while :; do
-          if wget -q -O /dev/null --timeout=10 --no-check-certificate "$$EDGE_URL"; then
-            wget -q -O /dev/null --timeout=10 --no-check-certificate "$$HC_PING_URL" || echo "healthchecks ping failed"
+          if wget -q -O /dev/null --timeout=10 "$$EDGE_URL"; then
+            wget -q -O /dev/null --timeout=10 "$$HC_PING_URL" || echo "healthchecks ping failed"
           else
             echo "edge unreachable; skipping the ping"
           fi
