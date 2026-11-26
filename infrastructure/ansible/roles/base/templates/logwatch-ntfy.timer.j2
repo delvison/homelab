@@ -1,0 +1,14 @@
+# Daily logwatch digest. Managed by Ansible (roles/base).
+[Unit]
+Description=Daily logwatch digest to ntfy
+
+[Timer]
+# Off the hour so it does not race the other daily jobs.
+OnCalendar=*-*-* 06:17:00
+RandomizedDelaySec=15m
+# Catch up after the host was off at 06:17, instead of skipping the day.
+Persistent=true
+Unit=logwatch-ntfy.service
+
+[Install]
+WantedBy=timers.target

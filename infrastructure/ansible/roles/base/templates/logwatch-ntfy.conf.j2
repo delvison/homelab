@@ -1,0 +1,6 @@
+# Credentials for logwatch-ntfy.service. Managed by Ansible (roles/base).
+# Read by systemd as an EnvironmentFile, mode 0600, root only. The token is
+# write-only on the security topic. Named .conf rather than .env on purpose.
+NTFY_URL={{ ntfy_base_url }}
+NTFY_TOKEN={{ ntfy_security_token }}
+NTFY_TOPIC={{ ntfy_security_topic | default('security') }}

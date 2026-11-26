@@ -177,3 +177,78 @@
     dest: /etc/logwatch/conf/logwatch.conf
     mode: '0644'
   when: ansible_facts["os_family"] == "Debian"
+
+# Phase 1.3: deliver the digest instead of mailing it to an MTA that is not
+# installed. logwatch.conf keeps `Output = mail` because the stock
+# /etc/cron.daily/00logwatch reads that file; the script passes
+# `--output stdout`, which overrides it, so nothing else changes behaviour.
+- name: Deploy the logwatch ntfy credentials
+  template:
+    src: logwatch-ntfy.conf.j2
+    dest: /etc/logwatch/ntfy.conf
+    owner: root
+    group: root
+    mode: '0600'
+  # The rendered file contains the ntfy token, so keep it out of the log.
+  no_log: true
+  when:
+    - ansible_facts["os_family"] == "Debian"
+    - ntfy_security_token is defined and ntfy_security_token | length > 0
+
+- name: Deploy the logwatch ntfy sender
+  template:
+    src: logwatch-ntfy.sh.j2
+    dest: /usr/local/bin/logwatch-ntfy
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - ansible_facts["os_family"] == "Debian"
+    - ntfy_security_token is defined and ntfy_security_token | length > 0
+
+- name: Deploy the logwatch ntfy service and timer
+  template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: logwatch-ntfy.service.j2, dest: logwatch-ntfy.service }
+    - { src: logwatch-ntfy.timer.j2, dest: logwatch-ntfy.timer }
+  when:
+    - ansible_facts["os_family"] == "Debian"
+    - ntfy_security_token is defined and ntfy_security_token | length > 0
+
+- name: Enable the daily logwatch digest
+  systemd:
+    name: logwatch-ntfy.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - ansible_facts["os_family"] == "Debian"
+    - ntfy_security_token is defined and ntfy_security_token | length > 0
+
+# No token: leave nothing behind that would try to read a missing credential
+# file. The timer is stopped first, because removing an enabled unit leaves a
+# dangling symlink in timers.target.wants.
+- name: Stop the daily logwatch digest when no token is configured
+  systemd:
+    name: logwatch-ntfy.timer
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  failed_when: false
+  when: not (ntfy_security_token is defined and ntfy_security_token | length > 0)
+
+- name: Remove the logwatch ntfy sender, units and credentials when unconfigured
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /usr/local/bin/logwatch-ntfy
+    - /etc/systemd/system/logwatch-ntfy.service
+    - /etc/systemd/system/logwatch-ntfy.timer
+    - /etc/logwatch/ntfy.conf
+  when: not (ntfy_security_token is defined and ntfy_security_token | length > 0)

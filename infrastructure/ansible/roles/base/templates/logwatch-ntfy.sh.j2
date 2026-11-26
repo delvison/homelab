@@ -1,0 +1,44 @@
+#!/bin/sh
+# Send yesterday's logwatch digest to the ntfy security topic.
+# Installed by Ansible (roles/base) as /usr/local/bin/logwatch-ntfy and run by
+# logwatch-ntfy.timer. The token comes from /etc/logwatch/ntfy.env, which
+# systemd reads as root; nothing here should print it.
+#
+# logwatch.conf keeps `Output = mail` because the stock
+# /etc/cron.daily/00logwatch still uses that file, and there is no MTA behind
+# it. `--output stdout` on the command line overrides the config.
+set -eu
+
+: "${NTFY_URL:?NTFY_URL is not set}"
+: "${NTFY_TOKEN:?NTFY_TOKEN is not set}"
+NTFY_TOPIC="${NTFY_TOPIC:-security}"
+
+host=$(hostname -s)
+
+if ! body=$(logwatch --range yesterday --detail low --output stdout 2>/dev/null); then
+	echo "logwatch failed; not sending a digest" >&2
+	exit 0
+fi
+
+if [ -z "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then
+	echo "logwatch produced no output; not sending a digest" >&2
+	exit 0
+fi
+
+# ntfy drops messages above a few KiB. Keep the tail: that is where
+# "Unmatched Entries" and the per-service sections end up.
+if [ "${#body}" -gt 3500 ]; then
+	body="[...truncated, showing the last 3500 characters...]
+
+$(printf '%s' "$body" | tail -c 3500)"
+fi
+
+# Priority low: this is a daily digest, not an alert. Alerts arrive from the
+# fail2ban action and Alertmanager.
+printf '%s' "$body" | curl -fsS --max-time 20 \
+	-H "Authorization: Bearer ${NTFY_TOKEN}" \
+	-H "Title: logwatch: ${host}" \
+	-H "Priority: low" \
+	-H "Tags: scroll" \
+	--data-binary @- \
+	"${NTFY_URL}/${NTFY_TOPIC}" >/dev/null

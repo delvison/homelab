@@ -1,0 +1,14 @@
+# Send the logwatch digest to ntfy. Managed by Ansible (roles/base).
+[Unit]
+Description=Send the logwatch digest to ntfy
+Documentation=https://github.com/delvison/homelab
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/logwatch/ntfy.conf
+ExecStart=/usr/local/bin/logwatch-ntfy
+# The digest can be large; leave a real timeout rather than letting systemd
+# kill curl mid-request.
+TimeoutStartSec=180
