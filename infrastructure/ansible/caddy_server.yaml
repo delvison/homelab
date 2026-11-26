@@ -1,13 +1,13 @@
-# Description: Use this playbook to install a Caddy
+# Description: Install Caddy and ship its access logs to the monitoring collector
 # ref: https://caddyserver.com/
 ---
-- name: Install Caddy
+- name: Install Caddy and log shipping
   become: true
   hosts: caddy
-  vars:
-    # https://github.com/caddyserver/caddy/releases/
-    caddy_version: 2.11.4
   vars_files:
     - "./vars/vault.yml"
   roles:
-    - caddy
+    - role: caddy
+      tags: [caddy]
+    - role: otelcol
+      tags: [otelcol]

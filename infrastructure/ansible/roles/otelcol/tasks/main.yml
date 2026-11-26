@@ -1,0 +1,96 @@
+---
+- name: Download otelcol-contrib deb
+  get_url:
+    url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_version }}/otelcol-contrib_{{ otelcol_version }}_linux_amd64.deb"
+    dest: "/tmp/otelcol-contrib_{{ otelcol_version }}_linux_amd64.deb"
+  become: yes
+
+- name: Install otelcol-contrib
+  apt:
+    deb: "/tmp/otelcol-contrib_{{ otelcol_version }}_linux_amd64.deb"
+    state: present
+  become: yes
+  when: not ansible_check_mode
+
+- name: Allow otelcol-contrib to read Caddy logs
+  user:
+    name: otelcol-contrib
+    groups: caddy
+    append: yes
+  become: yes
+  notify:
+    - Restart otelcol-contrib
+
+- name: Check for existing otelcol config
+  stat:
+    path: /etc/otelcol-contrib/config.yaml
+  register: otelcol_config
+
+- name: Check for existing otelcol config backup
+  stat:
+    path: /etc/otelcol-contrib/config.yaml.bk
+  register: otelcol_config_bk
+
+- name: Back up existing otelcol config
+  copy:
+    src: /etc/otelcol-contrib/config.yaml
+    dest: /etc/otelcol-contrib/config.yaml.bk
+    remote_src: yes
+  become: yes
+  when:
+    - otelcol_config.stat.exists
+    - not otelcol_config_bk.stat.exists
+
+- name: Create otelcol environment file
+  copy:
+    content: |
+      OTLP_ENDPOINT={{ OTLP_ENDPOINT }}
+      OTEL_AUTH_TOKEN={{ OTEL_AUTH_TOKEN }}
+    dest: /etc/otelcol-contrib/otelcol.env
+    owner: root
+    group: otelcol-contrib
+    mode: '0640'
+  become: yes
+  no_log: true
+  notify:
+    - Restart otelcol-contrib
+
+- name: Create systemd drop-in directory
+  file:
+    path: /etc/systemd/system/otelcol-contrib.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Add EnvironmentFile drop-in
+  copy:
+    content: |
+      [Service]
+      EnvironmentFile=/etc/otelcol-contrib/otelcol.env
+    dest: /etc/systemd/system/otelcol-contrib.service.d/10-env.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify:
+    - Restart otelcol-contrib
+
+- name: Template otelcol config
+  template:
+    src: config.yaml.j2
+    dest: /etc/otelcol-contrib/config.yaml
+    owner: root
+    group: otelcol-contrib
+    mode: '0644'
+  become: yes
+  notify:
+    - Restart otelcol-contrib
+
+- name: Ensure otelcol-contrib is enabled and running
+  systemd:
+    name: otelcol-contrib
+    enabled: yes
+    state: started
+  become: yes

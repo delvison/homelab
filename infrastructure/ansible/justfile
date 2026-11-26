@@ -15,6 +15,9 @@ run-bitcoin-core:
 run-caddy:
   ansible-playbook -i inventory.ini caddy_server.yaml --tags=caddy -K
 
+run-otelcol:
+  ansible-playbook -i inventory.ini caddy_server.yaml --tags=otelcol -K
+
 run-dojo:
   ansible-playbook -i inventory.ini site.yaml --tags=dojo -K
 

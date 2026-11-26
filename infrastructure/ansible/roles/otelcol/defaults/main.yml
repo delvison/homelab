@@ -1,0 +1,8 @@
+---
+# Pin the collector version. The VPS already runs 0.109.0; keeping the pin
+# avoids a config-schema jump in the same change as the log-shipping rollout.
+otelcol_version: "0.109.0"
+
+# Resource/datapoint tags attached to everything this agent exports.
+otelcol_host_name: "vps"
+otelcol_environment: "edge"

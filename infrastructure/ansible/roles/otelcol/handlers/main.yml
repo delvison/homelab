@@ -1,0 +1,7 @@
+---
+- name: Restart otelcol-contrib
+  become: yes
+  systemd:
+    name: otelcol-contrib
+    daemon_reload: yes
+    state: restarted

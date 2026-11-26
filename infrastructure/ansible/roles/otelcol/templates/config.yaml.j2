@@ -1,0 +1,193 @@
+# Managed by Ansible (roles/otelcol). Do not edit by hand.
+#
+# Ships Caddy access logs off-box as the `caddy.access.requests` metric, plus
+# Caddy/host metrics, to the monitoring collector over OTLP HTTP.
+#
+# The previous unmanaged config is backed up as config.yaml.bk.
+
+extensions:
+  # Localhost only; the collector does not need to expose health publicly.
+  health_check:
+    endpoint: localhost:13133
+
+receivers:
+  # Caddy writes JSON access logs to /var/log/caddy/<domain>.access.log.
+  # start_at: end avoids replaying the current multi-MB file on first start.
+  filelog:
+    include: [/var/log/caddy/*.access.log]
+    start_at: end
+    operators:
+      - type: json_parser
+        on_error: drop
+      # Only HTTPS requests carry a TLS server name; drop plain-HTTP redirects.
+      - type: filter
+        expr: 'attributes.request == nil or attributes.request.tls == nil or attributes.request.tls.server_name == nil'
+      - type: move
+        from: attributes.request.tls.server_name
+        to: attributes["server_name"]
+      - type: move
+        from: attributes.request.uri
+        to: attributes["uri"]
+      - type: move
+        from: attributes.request.remote_ip
+        to: attributes["remote_ip"]
+      - type: move
+        from: attributes.request.client_ip
+        to: attributes["client_ip"]
+      - type: move
+        from: attributes.request.method
+        to: attributes["method"]
+      # Normalise the path to its first segment so scanners hitting random
+      # paths do not create one time series per URI.
+      - type: regex_parser
+        parse_from: attributes.uri
+        regex: '^/(?P<uri_class>[^/?]*)'
+        on_error: drop
+
+  # Caddy's Prometheus endpoint (admin API bound to localhost).
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'caddy'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['127.0.0.1:2019']
+
+  # Host-level metrics already present on the VPS.
+  prometheus/internal:
+    config:
+      scrape_configs:
+        - job_name: 'node'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['127.0.0.1:9100']
+        - job_name: 'systemd-metrics'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['127.0.0.1:9558']
+        - job_name: 'otel'
+          scrape_interval: 10s
+          static_configs:
+            - targets: ['127.0.0.1:8888']
+
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      network:
+      processes:
+  hostmetrics/disk:
+    collection_interval: 1m
+    scrapers:
+      disk:
+      filesystem:
+
+processors:
+  batch:
+    timeout: 2s
+    send_batch_size: 1024
+    # Bound the payload size. Without this a burst produces multi-thousand
+    # point requests, which are slow to acknowledge and amplify any stall on
+    # the receiving collector.
+    send_batch_max_size: 2048
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+  # Bound uri_class. Scanners request random paths, and every distinct value
+  # becomes a resident series in the receiving collector, so anything that is
+  # not a short path segment is folded into "other".
+  transform/bucket_uri_class:
+    error_mode: ignore
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["uri_class"], "other") where attributes["uri_class"] != nil and not IsMatch(attributes["uri_class"], "^[A-Za-z0-9._-]{1,16}$")
+  # The count connector emits delta-temporality sums. Prometheus scrapes are
+  # cumulative, so without this the receiver reports per-scrape increments and
+  # rate() sees bogus counter resets.
+  deltatocumulative:
+    max_stale: 5m
+    max_streams: 5000
+  # Datapoint attributes (not resource attributes) so the Prometheus exporter
+  # on the monitoring side exposes them as labels.
+  attributes/tags:
+    actions:
+      - key: host_name
+        value: "{{ otelcol_host_name }}"
+        action: upsert
+      - key: environment
+        value: "{{ otelcol_environment }}"
+        action: upsert
+      - key: service_namespace
+        value: infrastructure
+        action: upsert
+
+connectors:
+  # Turn each access-log record into a counted metric. Deliberately excludes
+  # `ts`, `duration`, `remote_ip` and `client_ip`:
+  #   - ts/duration are unique per request (unbounded cardinality)
+  #   - per-IP labels create one series per client on the receiving collector
+  #     and would retain personal data in long-term metrics storage
+  count:
+    logs:
+      # Named caddy.access.requests so it becomes caddy_access_requests_total.
+      # Caddy's own metrics endpoint already exposes caddy_http_requests_total,
+      # and sharing the name silently double-counts any rate() over it.
+      caddy.access.requests:
+        description: Total HTTP requests derived from Caddy access logs
+        attributes:
+          - key: server_name
+            default_value: unknown
+          - key: status
+            default_value: unknown
+          - key: uri_class
+            default_value: unknown
+          - key: method
+            default_value: unknown
+
+exporters:
+  otlphttp:
+    endpoint: ${env:OTLP_ENDPOINT}
+    headers:
+      Authorization: Bearer ${env:OTEL_AUTH_TOKEN}
+    tls:
+      insecure: false
+    # The receiver answers only after its own pipeline accepts the data, so a
+    # stalled monitoring collector makes requests hang. Fail fast and retry a
+    # bounded number of times instead of blocking the queue indefinitely.
+    timeout: 15s
+    # 0.109 uses the older `retry_on_failure` key (`retry` lands in 0.121+).
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 120s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 2000
+
+service:
+  telemetry:
+    metrics:
+      address: localhost:8888
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [memory_limiter, attributes/tags, batch]
+      exporters: [otlphttp]
+    metrics/internal:
+      receivers: [prometheus/internal, hostmetrics, hostmetrics/disk]
+      processors: [memory_limiter, attributes/tags, batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [filelog]
+      processors: [memory_limiter, batch]
+      exporters: [count]
+    metrics/from_logs:
+      receivers: [count]
+      processors: [memory_limiter, transform/bucket_uri_class, deltatocumulative, attributes/tags, batch]
+      exporters: [otlphttp]
