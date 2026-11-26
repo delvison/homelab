@@ -337,6 +337,37 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
+  # Dead-man's switch. Pings healthchecks only while the VPS edge and its ntfy
+  # answer, so a missing ping means either the edge or this host is down.
+  # healthchecks runs on another house host and reports through the house ntfy,
+  # so neither the alert nor its delivery depends on the VPS.
+  heartbeat:
+    image: alpine:3.19
+    container_name: heartbeat
+    restart: unless-stopped
+    environment:
+      - EDGE_URL=${EDGE_URL:?EDGE_URL must be set}
+      - HC_PING_URL=${HC_PING_URL:?HC_PING_URL must be set}
+    command:
+      - sh
+      - -c
+      - |
+        while :; do
+          if wget -q -O /dev/null --timeout=10 --no-check-certificate "$$EDGE_URL"; then
+            wget -q -O /dev/null --timeout=10 --no-check-certificate "$$HC_PING_URL" || echo "healthchecks ping failed"
+          else
+            echo "edge unreachable; skipping the ping"
+          fi
+          sleep 600
+        done
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
+          memory: 32M
+    networks:
+      - monitoring
+
 secrets:
   admin_password:
     environment: GRAFANA_ADMIN_PASSWORD

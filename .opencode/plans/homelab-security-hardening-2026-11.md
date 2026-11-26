@@ -37,7 +37,8 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | — | `del` granted read-only on `security` (manual, not in Ansible) | **done, out-of-band** — see §0.3 |
 | — | 1.3 deploy | logwatch timer on the home hosts | **not deployed** — units absent on `server` and `proxmox` |
 | 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **code done** — `promtool` 3 rules; deploy pending |
-| — | 1.6–1.7 | dead-man's switch, security dashboard | not started |
+| — | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **code done** — needs a house ntfy credential, a healthchecks check, and two `.env` values |
+| — | 1.7 | security dashboard | not started |
 | — | 2–9 | see below | not started |
 
 **Deviations from the plan as written.** Read these before implementing 1.5 and
@@ -393,8 +394,22 @@ Record results in §4 before Phase 1.
    http://<monitoring>:9090/-/reload`. Verify: `promtool` output above, then
    `/api/v1/rules?type=alert` shows the `security` group; no rule should be in
    `pending`/`firing` on quiet traffic.
-6. **Dead-man's switch**: `vps` cron pings self-hosted `healthchecks` daily; a miss
-   alerts. So "no alert" cannot mean "agent died".
+6. **[code done 2026-11-26] Dead-man's switch** — inverted from the sketch. The
+   sketch had the VPS ping `healthchecks` (house), which needs a VPS→house hole
+   through the very boundary Phase 2 closes. Instead a `heartbeat` container on
+   the monitoring host (`.180`) pings `healthchecks` (`.224`) **only while the
+   VPS `/v1/health` answers**, every 10 minutes:
+   - VPS dead or its ntfy dead → no ping → healthchecks reports it.
+   - monitoring host dead → no ping → same alert, from a different host.
+   - delivery: healthchecks → **house ntfy** (`.224:12500`), which does not
+     depend on the VPS or on `.180`. That is why a house ntfy credential is
+     needed; without it the alert would be published to the dead VPS.
+   Traffic is house→VPS and house→house, so no new inbound path to the house.
+   Needs two `.env` values (`EDGE_URL`, `HC_PING_URL`); compose refuses to start
+   the service without them rather than silently sending nothing.
+   Not covered: `.224` dying (it hosts ntfy, gatus and healthchecks, so nothing
+   house-side can speak — Prometheus on `.180` still alerts through the VPS),
+   and the whole house going dark. Both are visible to a human.
 7. **Grafana dashboard** `security.json`: bans over time, top offending IPs,
    403/404/429 by host, unique-URI ratio, unknown-Host hits.
 
