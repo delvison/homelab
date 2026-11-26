@@ -1,0 +1,22 @@
+# Notify the ntfy security topic for every ban. Managed by Ansible
+# (roles/caddy). Only deployed when ntfy_security_token is set.
+#
+# Attached as an extra action in caddy-jail.conf.j2 (`action = %(action_)s`
+# followed by `ntfy`), so the firewall ban from the distro default still runs.
+#
+# The token is rendered from the vault into this file, which Ansible writes
+# root-only. It is a write-only token for the security topic; keep it that way,
+# because anything that can read this file can also read it.
+#
+# actioncheck is left empty on purpose: a failing notification must never stop a
+# ban from being applied.
+
+[Definition]
+
+actionstart =
+actionstop =
+actioncheck =
+actionban = curl -sS --max-time 5 -H "Authorization: Bearer {{ ntfy_security_token }}" -H "Title: fail2ban: <name> banned <ip>" -H "Priority: default" -H "Tags: rotating_light" --data-binary "<name> banned <ip> after <failures> failure(s), bantime <bantime>s" "{{ ntfy_base_url }}/{{ ntfy_security_topic | default('security') }}"
+actionunban =
+
+[Init]

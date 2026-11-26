@@ -1,0 +1,20 @@
+# Shared fail2ban defaults. Managed by Ansible (roles/caddy).
+#
+# Written to jail.d/ so it sorts before the jail files. fail2ban merges
+# [DEFAULT] from jail.conf, then jail.local, then jail.d/*.conf in order, so
+# this file is read last and wins.
+#
+# ignoreip covers loopback, RFC1918, the CGNAT range used by Tailscale, and the
+# 10.x space used by Nebula. It deliberately contains no public address: a
+# monitor that probes the public edge from inside the house arrives with the
+# home WAN address, and that must not be committed. Set
+# caddy_fail2ban_ignoreip (from the vault) if that becomes a self-ban problem.
+#
+# bantime.increment doubles the ban for each repeat offence, up to 48h, which
+# replaces the old caddy-aggressive jail.
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10{% if caddy_fail2ban_ignoreip %} {{ caddy_fail2ban_ignoreip }}{% endif %}
+
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 48h

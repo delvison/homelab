@@ -1,3 +1,9 @@
 ---
 # https://github.com/caddyserver/caddy/releases/
 caddy_version: "2.11.9"
+
+# Extra addresses that fail2ban must never ban, appended to a fixed list of
+# loopback, RFC1918, CGNAT and Nebula ranges. Keep public addresses out of the
+# repository: set this from the vault (e.g. the home WAN address) instead.
+caddy_fail2ban_ignoreip: ""
+

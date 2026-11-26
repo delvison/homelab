@@ -1,64 +1,43 @@
-# Fail2ban jail configuration for Caddy web server
-# Protects against web-based attacks
+# Fail2ban jails for Caddy. Managed by Ansible (roles/caddy).
+#
+# One filter (caddy.conf) matches 400/403/404/429 and nothing else, so extra
+# jails over that same filter cannot detect anything the jails below do not:
+# they only differ in threshold. caddy-scan, caddy-attack, caddy-invalid and
+# caddy-aggressive were removed for that reason. They also multiplied every ban
+# by four, and would have sent four notifications for one address. Escalation
+# now comes from `bantime.increment` in 00-ansible-defaults.conf instead.
+#
+# The nftables action that used to be hardcoded on caddy-envscan is gone: it
+# replaced the distro ban action rather than adding to it, so that one jail
+# banned differently from every other jail on the host.
 
-[caddy-scan]
-# Blocks IP addresses scanning for vulnerabilities (404 errors)
-# Triggers on 5+ 404 responses in 60 seconds
+[caddy]
 enabled = true
 filter = caddy
+port = http,https
 logpath = /var/log/caddy/*.access.log
+backend = auto
 maxretry = 5
 findtime = 60
 bantime = 600
-port = http,https
-backend = auto
-
-[caddy-attack]
-# Blocks IP addresses hitting protected resources (403 errors)
-# or triggering rate limits (429 errors)
-# Triggers on 3+ 403/429 responses in 60 seconds
-enabled = true
-filter = caddy
-logpath = /var/log/caddy/*.access.log
-maxretry = 3
-findtime = 60
-bantime = 3600
-port = http,https
-backend = auto
-
-[caddy-invalid]
-# Blocks IP addresses scanning invalid hosts/virtual hosts
-# Catches random domain scanning
-enabled = true
-filter = caddy
-logpath = /var/log/caddy/*.access.log
-maxretry = 5
-findtime = 60
-bantime = 600
-port = http,https
-backend = auto
-
-[caddy-aggressive]
-# Extra aggressive protection combining all indicators
-# For persistent attackers that trigger multiple jails
-enabled = true
-filter = caddy
-logpath = /var/log/caddy/*.access.log
-maxretry = 10
-findtime = 300
-bantime = 86400
-port = http,https
-backend = auto
+{% if ntfy_security_token is defined and ntfy_security_token | length > 0 %}
+# Default firewall ban, plus a notification. `action_` is the distro default
+# (banaction with port and chain), so the firewall rule is not replaced.
+action = %(action_)s
+         ntfy
+{% endif %}
 
 [caddy-envscan]
-# Blocks IP addresses scanning for .env files (common security probe)
-# Immediate ban on first attempt - these are always malicious
+# Anyone asking for a .env file is not a visitor. Ban on the first attempt.
 enabled = true
 filter = caddy-envscan
+port = http,https
 logpath = /var/log/caddy/*.access.log
+backend = auto
 maxretry = 1
 findtime = 60
 bantime = 3600
-port = http,https
-backend = auto
-action = nftables[table="f2b-caddy"]
+{% if ntfy_security_token is defined and ntfy_security_token | length > 0 %}
+action = %(action_)s
+         ntfy
+{% endif %}

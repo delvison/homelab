@@ -1,29 +1,35 @@
-# Fail2ban filter for Caddy web server
-# Detects malicious activity from Caddy JSON access logs
+# Fail2ban filter for Caddy JSON access logs.
+#
+# Caddy writes one JSON object per request, and field order matters to a
+# line-based filter. The real order is:
+#
+#   ts, level, logger, msg, request{remote_ip, remote_port, client_ip, proto,
+#   method, host, uri, headers, tls}, bytes_read, user_id, duration, size, status
+#
+# `status` comes AFTER `remote_ip`, so a regex that expects status first can
+# never match. Both orders are matched below to stay correct if Caddy ever
+# reorders the fields.
+#
+# The datepattern is a strptime format, not a regex: `%d` means day-of-month.
+# Writing the timezone offset as `%d{2}` compiles two groups named `d` and
+# Python raises "redefinition of group name 'd'", which makes the filter fail
+# to load and takes every jail that uses it down with it. Use `\d` for digits.
+# The `%%` escapes are the config-parser form of `%`.
+#
+# Deliberately not matched: 401. Apps that 401 on an expired token would get
+# their own legitimate sync clients banned. Revisit as a separate ``caddy-auth``
+# jail once there is a baseline of what the clients do.
 
 [Definition]
 
-# Main filter - catches all suspicious activity
-failregex = ^{.*"level":"error".*"msg":"[^"]*".*"remote_ip":"<HOST>".*}$
-            ^{.*"remote_ip":"<HOST>".*"status":(?:404|403|429|400).*}$
-            ^{.*"status":(?:404|403|429|400).*"remote_ip":"<HOST>".*}$
+failregex = ^.*"remote_ip":"<HOST>".*"status":(?:400|403|404|429)\b.*$
+            ^.*"status":(?:400|403|404|429)\b.*"remote_ip":"<HOST>".*$
 
-# Ignore legitimate requests
-ignoreregex = ^{.*"status":(?:200|201|204|301|302|304|308).*}$
-              ^{.*"method":"OPTIONS".*}$
-              ^{.*"request_uri":"/health".*}$
-              ^{.*"request_uri":"/metrics".*}$
+# Legitimate traffic. These are whole-line matches, so they also stop a request
+# from a host that is already being probed from contributing to a ban.
+ignoreregex = ^.*"status":(?:200|201|204|301|302|304|308)\b.*$
+              ^.*"method":"OPTIONS".*$
+              ^.*"uri":"/(?:health|healthz|metrics|api/health)[^"]*".*$
 
-# Date pattern for JSON timestamps
-datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]%%d{2}:?%%d{2})?
-
-[Init]
-
-# Used for the caddy-scan jail (404 probing)
-scan_threshold = 5
-
-# Used for the caddy-attack jail (403/429)
-attack_threshold = 3
-
-# Used for the caddy-invalid jail (invalid host scanning)
-invalid_threshold = 5
+# Caddy logs RFC3339: 2026-11-26T03:07:22Z or an explicit numeric offset.
+datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]\d{2}:?\d{2})?

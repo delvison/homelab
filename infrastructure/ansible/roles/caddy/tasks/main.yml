@@ -134,6 +134,53 @@
     mode: '0644'
   notify: Restart fail2ban
 
+# ignoreip and ban escalation for every jail on the host, not just Caddy's.
+- name: Deploy shared fail2ban defaults
+  template:
+    src: templates/fail2ban-defaults.conf.j2
+    dest: /etc/fail2ban/jail.d/00-ansible-defaults.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart fail2ban
+
+# Only present once a token exists; the jail file references `ntfy` under the
+# same condition, so a host without a token keeps the stock ban action alone.
+- name: Deploy the ntfy ban notification action
+  template:
+    src: templates/fail2ban-ntfy.conf.j2
+    dest: /etc/fail2ban/action.d/ntfy.conf
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Restart fail2ban
+  when: ntfy_security_token is defined and ntfy_security_token | length > 0
+
+# fail2ban silently skips any filter it cannot compile. That is how every Caddy
+# jail on this host ended up disabled: a bad datepattern made the filter
+# unparseable, the daemon kept running, and nothing reported a problem. Fail the
+# play instead of shipping a filter that does nothing.
+- name: Write a synthetic line for the filter compile check
+  copy:
+    dest: /tmp/fail2ban-caddy-check.log
+    mode: '0644'
+    content: |
+      {"level":"info","ts":"2026-01-01T00:00:00Z","logger":"http.log.access.log0","msg":"handled request","request":{"remote_ip":"203.0.113.7","client_ip":"203.0.113.7","method":"GET","host":"probe.invalid","uri":"/"},"status":404}
+
+- name: Verify the Caddy fail2ban filters compile
+  command: >-
+    fail2ban-regex --print-no-missed --print-no-ignored
+    /tmp/fail2ban-caddy-check.log {{ item }}
+  loop:
+    - /etc/fail2ban/filter.d/caddy.conf
+    - /etc/fail2ban/filter.d/caddy-envscan.conf
+  changed_when: false
+
+- name: Remove the filter compile check log
+  file:
+    path: /tmp/fail2ban-caddy-check.log
+    state: absent
+
 - name: Ensure fail2ban is enabled and running
   systemd:
     name: fail2ban

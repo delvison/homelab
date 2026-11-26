@@ -1,12 +1,14 @@
-# Fail2ban filter for Caddy .env file scanning
-# Detects attempts to access .env files (common security probe)
+# Fail2ban filter for requests probing for .env files. These are always
+# malicious, so the jail bans on the first match.
+#
+# The datepattern is a strptime format: `%d` is day-of-month, and a timezone
+# offset written as `%d{2}` compiles two groups named `d`, which makes the
+# filter fail to load. See caddy-filter.conf.j2 for the full explanation.
 
 [Definition]
 
-failregex = ^.*"remote_ip":"<HOST>".*"uri":".*\.env.*"
+failregex = ^.*"remote_ip":"<HOST>".*"uri":"[^"]*\.env[^"]*".*$
 
 ignoreregex =
 
-datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]%%d{2}:?%%d{2})?
-
-[Init]
+datepattern = {^LN-BEG}%%Y-%%m-%%d[T ]%%H:%%M:%%S(?:\.%%f)?(?:Z|[+-]\d{2}:?\d{2})?
