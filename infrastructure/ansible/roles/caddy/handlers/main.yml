@@ -1,17 +1,12 @@
+# Validate and restart in one handler. A separate validate handler with
+# `changed_when: false` would not fire its notify, leaving Caddy down after
+# the deb postinst has already stopped it.
 - name: Restart caddy
   become: yes
-  systemd:
-    name: caddy
-    state: restarted
-
-- name: Validate caddy
-  uri:
-    url: http://127.0.0.1:2019/metrics
-    method: GET
-    status_code: 200
-    timeout: 10
-  register: metric_response
-  until: metric_response.status == 200
+  shell: |
+    set -e
+    caddy validate --config /etc/caddy/Caddyfile
+    systemctl restart caddy
 
 - name: Restart fail2ban
   become: yes

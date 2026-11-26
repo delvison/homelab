@@ -14,9 +14,7 @@
 	# Bind admin API to localhost only for security
 	admin 127.0.0.1:2019
 	
-	servers {
-		metrics
-	}
+	metrics
 }
 
 # Snippet: Common security headers
@@ -413,6 +411,9 @@
 	# Enhanced logging
 	log {
 		output file /var/log/caddy/{{ caddy_domain }}.access.log {
+			# Group-readable so the otelcol-contrib log shipper (in the caddy
+			# group) can tail rotated files; Caddy defaults to 0600.
+			mode 0640
 			roll_size 100MB
 			roll_keep 10
 			roll_keep_for 720h
@@ -436,9 +437,6 @@
 	handle @proxy {
 		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:22067 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
@@ -449,22 +447,15 @@
 		
 		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:22300 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
 	@paste host paste.{{ caddy_domain }}
 	handle @paste {
-		# CSP for Paste service (allows uploads)
-		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; media-src 'self' https:; frame-src 'self'; frame-ancestors 'none';"
 		
-		reverse_proxy http://{{ server3 }}.{{ caddy_domain }}:10500 {
+		reverse_proxy http://{{ server1 }}:10500 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
@@ -475,9 +466,6 @@
 		
 		reverse_proxy http://{{ server2 }}.{{ caddy_domain }}:9111 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
@@ -488,41 +476,27 @@
 		
 		reverse_proxy /opds* http://{{ server1 }}:2007 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 		reverse_proxy http://{{ server1 }}:2008 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
 	@mempool host mempool.{{ caddy_domain }}
 	handle @mempool {
-		# CSP for mempool explorer
 		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' wss: https:; media-src 'self'; frame-src 'none'; frame-ancestors 'none';"
 		
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:8050 {
+		reverse_proxy http://{{ server1 }}:8050 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
 	@nc host nc.{{ caddy_domain }}
 	handle @nc {
-		# CSP for NextCloud
 		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss: blob:; media-src 'self' blob:; frame-src 'self' blob:; frame-ancestors 'self'; worker-src 'self' blob:;"
 		
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:18600 {
+		reverse_proxy http://{{ server1 }}:18600 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
@@ -531,11 +505,8 @@
 		# CSP for music streaming
 		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; frame-src 'none'; frame-ancestors 'none';"
 		
-		reverse_proxy http://{{ server1 }}.{{ caddy_domain }}:4553 {
+		reverse_proxy http://{{ server1 }}:4553 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 	}
 
@@ -546,9 +517,6 @@
 		
 		reverse_proxy http://localhost:2586 {
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
 		}
 
 		# Redirect HTTP to HTTPS for GET requests
@@ -558,6 +526,17 @@
 			path_regexp ^/([-_a-z0-9]{0,64}$|docs/|static/)
 		}
 		redir @httpget https://{host}{uri}
+	}
+
+	@public host public.{{ caddy_domain }}
+	handle @public {
+		# Password protection
+		basic_auth {
+			{{ public_basic_auth_user }} {{ public_basic_auth_hash }}
+		}
+
+		root * /var/www/html
+		file_server
 	}
 
 	handle {

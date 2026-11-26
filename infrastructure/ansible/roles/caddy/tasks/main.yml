@@ -20,6 +20,14 @@
     mode: '0755'
     recurse: yes
 
+- name: Create web root for public site
+  file:
+    path: /var/www/html
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: '0755'
+
 - name: Download Caddy deb file
   get_url:
     url: "https://github.com/caddyserver/caddy/releases/download/v{{ caddy_version }}/caddy_{{ caddy_version }}_linux_amd64.deb"
@@ -30,7 +38,9 @@
   apt:
     deb: /tmp/caddy_{{ caddy_version }}_linux_amd64.deb
     state: present
-  when: ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
+  when:
+    - ansible_facts["distribution"] == "Ubuntu" or ansible_facts["distribution"] == "Debian"
+    - not ansible_check_mode
 
 - name: Change ownership of /etc/caddy to caddy:caddy
   file:
@@ -41,10 +51,33 @@
 
 - name: Download Caddy server binary with cloudflare module
   get_url:
-    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare"
-    dest: /usr/bin/caddy
+    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare&version={{ caddy_version }}"
+    dest: "/tmp/caddy_{{ caddy_version }}_cloudflare"
     mode: '0755'
   become: yes
+
+- name: Install Caddy binary with cloudflare module
+  copy:
+    src: "/tmp/caddy_{{ caddy_version }}_cloudflare"
+    dest: /usr/bin/caddy
+    remote_src: yes
+    mode: '0755'
+  become: yes
+  when: not ansible_check_mode
+  notify:
+    - Restart caddy
+
+- name: Verify Caddy binary version
+  command: caddy version
+  register: caddy_version_check
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Assert Caddy binary matches caddy_version
+  assert:
+    that: caddy_version_check.stdout is search('v' ~ caddy_version ~ ' ')
+    fail_msg: "Caddy binary is not v{{ caddy_version }}: {{ caddy_version_check.stdout }}"
+  when: not ansible_check_mode
 
 - name: Check if Caddyfile exists
   stat:
@@ -66,7 +99,6 @@
   become_user: caddy
   notify:
     - Restart caddy
-    - Validate caddy
 
 # Fail2ban configuration for Caddy protection
 - name: Ensure fail2ban is installed
