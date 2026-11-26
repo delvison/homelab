@@ -345,6 +345,10 @@ services:
     image: alpine:3.19
     container_name: heartbeat
     restart: unless-stopped
+    # The monitoring host's resolver answers NXDOMAIN for the LAN zone, so pin
+    # the name to local-caddy. Revisit if the LAN proxy moves.
+    extra_hosts:
+      - "healthchecks.local.donttrackme.xyz:192.168.1.178"
     environment:
       - EDGE_URL=${EDGE_URL:?EDGE_URL must be set}
       - HC_PING_URL=${HC_PING_URL:?HC_PING_URL must be set}
