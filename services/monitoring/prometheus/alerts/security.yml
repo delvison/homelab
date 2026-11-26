@@ -2,26 +2,22 @@ groups:
   - name: security
     interval: 30s
     rules:
-      # The edge's 4xx/5xx signal. fail2ban bans page on their own through the
-      # ntfy action; there is no fail2ban metric yet (finding P), so no ban
-      # rule here.
-      - alert: Caddy403Burst
-        expr: sum(rate(caddy_access_requests_total{status="403"}[5m])) > 2
+      # Caddy's block rules (@bad_ua, @attack_paths, @bad_methods and the
+      # catch-all `handle { abort }`) close the connection, which Caddy logs as
+      # status 0. 403 on this edge means an app denied the request: nearly
+      # every 403 in a 3-day sample was ntfy answering a subscriber without
+      # read access, so alerting on 403 watches the wrong thing.
+      # Observed baseline: ~60 aborted requests per hour, peak 47 per 5 min,
+      # so 1/s for 5 min needs a 6x spike. There is no 429 rule because the
+      # edge has no rate_limit yet, so nothing can produce a 429.
+      - alert: CaddyBlockBurst
+        expr: sum(rate(caddy_access_requests_total{status="0"}[5m])) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Caddy is denying {{ $value | printf \"%.1f\" }} requests/s with 403"
-          description: "Sustained 403s for 5 minutes: a scanner is being denied, or an access rule now rejects legitimate traffic."
-
-      - alert: Caddy429Burst
-        expr: sum(rate(caddy_access_requests_total{status="429"}[5m])) > 1
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Caddy rate limiting is firing at {{ $value | printf \"%.1f\" }}/s"
-          description: "Sustained 429s for 5 minutes: something is being throttled hard, either an attack or a client stuck in a retry loop."
+          summary: "Caddy is aborting {{ $value | printf \"%.1f\" }} requests/s"
+          description: "Sustained aborted requests for 5 minutes: a scanner is tripping the block rules, or a monitor is calling a path the edge does not route."
 
       - alert: Caddy5xxRate
         expr: sum(rate(caddy_access_requests_total{status=~"5.."}[5m])) > 0.5
@@ -34,8 +30,8 @@ groups:
 
       # No requests at all for 15 minutes. Either the internet is down or the
       # VPS log shipper died; the dead-man's switch (Phase 1.6) is what proves
-      # which. Gatus probes the edge, so this should only fire when the whole
-      # public path is broken.
+      # which. Deliberately not a rate() of zero: the receiver's collector keeps
+      # a cumulative series flat instead of deleting it, so increase() sees 0.
       - alert: CaddyNoTraffic
         expr: sum(increase(caddy_access_requests_total{host_name="vps"}[15m])) == 0
         for: 0m

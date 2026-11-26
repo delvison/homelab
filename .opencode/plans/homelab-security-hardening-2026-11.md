@@ -36,7 +36,7 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | 1.2 incident | The new jails banned the home WAN from 80/443 (NAT, one address). Unbanned and added it to `caddy_fail2ban_ignoreip` | **resolved** — see `Logbook/2026-11-25` 23:22 |
 | 2026-11-25 | — | `del` granted read-only on `security` (manual, not in Ansible) | **done, out-of-band** — see §0.3 |
 | — | 1.3 deploy | logwatch timer on the home hosts | **not deployed** — units absent on `server` and `proxmox` |
-| 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: 403/429 bursts, 5xx rate, `CaddyNoTraffic` | **code done** — validated with `promtool check rules` (4 rules); not deployed |
+| 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **code done** — `promtool` 3 rules; deploy pending |
 | — | 1.6–1.7 | dead-man's switch, security dashboard | not started |
 | — | 2–9 | see below | not started |
 
@@ -355,9 +355,20 @@ Record results in §4 before Phase 1.
    than assumed. Route the group to `ntfy`; extend
    `alertmanager.template.yml`.
 
-   **As built (2026-11-26):** 4 rules, validated with
-   `promtool check rules` from the prod image (`prom/prometheus:v2.55.0`). Two
-   deviations from the sketch:
+   **As built (2026-11-26):** 3 rules, validated with `promtool check rules`
+   from the prod image (`prom/prometheus:v2.55.0`). Measured against 3 days of
+   VPS access logs (2026-11-23 → 11-26), which changed two of the sketch's
+   rules:
+   - `Caddy403Burst` became **`CaddyBlockBurst` on `status="0"`**. Caddy's
+     block rules (`@bad_ua`, `@attack_paths`, `@bad_methods`, the catch-all
+     `handle { abort }`) close the connection, which logs as status **0**. 403
+     on this edge is an *app* denying: 11562 of 11565 403s in the sample were
+     ntfy answering a subscriber with no read access on `alerts`. Observed
+     status-0 baseline ~60/hour, peak 47 per 5 min, so `> 1/s` for 5m needs a
+     6x spike.
+   - **No 429 rule.** Zero 429s in the sample and no `rate_limit` in the
+     Caddyfile, so nothing can produce one; Cloudflare is not proxying yet
+     (finding H). Add it with the limiter, not before.
    - `Fail2banBanSpike` is **not** included. `fail2ban_banned_current` does not
      exist, and a rule over a missing metric can never fire — dead config that
      looks like coverage. Bans page through the fail2ban ntfy action instead
@@ -367,10 +378,15 @@ Record results in §4 before Phase 1.
      `alerts`. So these rules land in **`alerts`**, while fail2ban bans land in
      **`security`**. That split is fine (different blast radius, different
      priority) but it means one incident can show up in two places.
-   401 is deliberately absent: the public site is behind basic auth, so a
-   credential-stuffing burst is a 401 burst, not a 403 — and every unauthenticated
-   visitor produces 401s too, so it is the noisiest rule of the set. Worth
-   adding only with a per-host threshold.
+   - 401 is deliberately absent: the public site is behind basic auth, so
+     credential stuffing is a 401 burst, and so is every unauthenticated
+     visitor. Worth adding only with a per-host threshold.
+   - **Deploy bug fixed with the commit:** `prometheus/web.yml` was tracked but
+     is rendered on the host by the `prometheus-init` container, which makes it
+     root-owned, so the next `push-files` scp could not overwrite it and
+     `just deploy` stopped before `docker compose up`. The placeholder is gone
+     and the path is in `services/monitoring/.gitignore`; nothing mounts the
+     file directly (both containers mount the directory), so init recreates it.
 
    Deploy: `just deploy` in `services/monitoring` (pushes `prometheus/` and
    force-recreates), or reload only: `curl -X POST -u admin:$PASS

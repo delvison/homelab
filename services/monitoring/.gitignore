@@ -1,1 +1,4 @@
 influxdb
+# Rendered on the host by prometheus-init (it holds the bcrypt hash), so it must
+# never be committed or pushed: a root-owned copy here failed every deploy.
+prometheus/web.yml
