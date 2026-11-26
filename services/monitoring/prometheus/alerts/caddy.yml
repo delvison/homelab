@@ -1,0 +1,41 @@
+groups:
+  - name: caddy
+    interval: 30s
+    rules:
+      - alert: CaddyDownstreamHealthCheckFailed
+        expr: caddy_reverse_proxy_health_checks_active == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.proxy_upstream }}"
+        annotations:
+          summary: "Caddy downstream health check failed for {{ $labels.proxy_upstream }}"
+          description: "Health check for {{ $labels.proxy_upstream }} has been failing for more than 2 minutes"
+
+      - alert: CaddyDownstreamHighFailureRate
+        expr: rate(caddy_reverse_proxy_health_checks_fails_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: "{{ $labels.proxy_upstream }}"
+        annotations:
+          summary: "High health check failure rate for {{ $labels.proxy_upstream }}"
+          description: "Health check failure rate is {{ $value | printf \"%.2f\" }} per second for {{ $labels.proxy_upstream }}"
+
+      - alert: CaddyMultipleDownstreamsDown
+        expr: count(caddy_reverse_proxy_health_checks_active == 0) > 3
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Multiple Caddy downstreams are down"
+          description: "{{ $value }} downstream services have failing health checks"
+
+      - alert: CaddyHighErrorRate
+        expr: rate(caddy_http_response_errors_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for {{ $labels.handler }}"
+          description: "Error rate is {{ $value | printf \"%.2f\" }} per second for {{ $labels.handler }}"
