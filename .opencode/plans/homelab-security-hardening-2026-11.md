@@ -2,7 +2,7 @@
 
 Status: **in progress** — Phase 1.1–1.6 deployed and verified 2026-11-26; the
 jails' first real ban was the home WAN, now in `ignoreip` (see §0.2 and the
-logbook). Next: 1.7, then Phase 2.
+logbook). Next: Phase 2 (edge hardening), then 3+.
 Author: agent (gap analysis of repo state at `delvison/homelab`)
 Date: 2026-11-25
 Scope: public edge (`vps` Caddy), the edge→home bridge, host integrity, backup
@@ -39,7 +39,8 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-26 | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **deployed** — check and token in place, ping confirmed; the alarm leg is accepted untested |
 | 2026-11-26 | — | proxmox's `9100` was blocked by **ufw** (not pve-firewall, which is disabled); the rule now lives in `roles/node_exporter` | **applied and verified** — ufw rule present, `NodeExporterDown` resolved |
 | 2026-11-26 | — | `CaddyHighUpstreamLatency` deleted: Caddy's `handler` label is `subroute` on every nested route, so the alert named nothing | **deployed** — 4 rules loaded, alert resolved |
-| — | 1.7 | security dashboard | not started |
+| 2026-11-26 | — | alertmanager `9093` was published on the LAN with no auth (read alerts, create silences) | **deployed** — bound to `127.0.0.1`, `d8e1959` |
+| 2026-11-26 | 1.7 | `security.json` provisioned from git: edge rate, blocks, 5xx, by status/host, URI classes, firing alerts. Top-IP panel dropped: the connector strips IPs | **done** — `8ff47b4`, verified live |
 | — | 2–9 | see below | not started |
 
 **Deviations from the plan as written.** Read these before implementing 1.5 and
@@ -614,6 +615,20 @@ New role `roles/host-ids` on `vps` + home server:
 7. fail2ban → Prometheus: add a real exporter (`fail2ban_exporter` container) for
    dashboards, or settle for ntfy-on-ban plus `fail2ban-client` on demand? The
    dashboard in 1.7 wants history; the alerts do not strictly need it.
+8. **Proxmox `8006` — parked 2026-11-26.** ufw denies it for everyone (284
+   drops seen, including local-caddy `.178`), so `pve1.local.<domain>` and
+   direct access are both dead. Choices: allow `.178`, allow `.152`, allow the
+   LAN, or keep it closed and use `ssh -L 8006:127.0.0.1:8006`. Not the LAN
+   option: the PVE API is root-equivalent. Before enabling the `pve1` vhost,
+   check its `cache` directive in front of an authenticated UI. It belongs in a
+   `proxmox_firewall` role, not `node_exporter`.
+9. **gatus — parked 2026-11-26.** Two faults: the publisher has no write ACL on
+   `alerts` (403 three times a minute), and its probes lie — `gitea.<domain>` is
+   gone from the edge Caddyfile, so the probe hits the catch-all `abort`
+   (status 0), and `music.`'s probe URL is still unread. Either disable the
+   publisher, or fix the live config and then grant write. Never grant write
+   before the probes are truthful. The live config is not in git and the repo
+   copy is a stale subset that would delete checks if deployed.
 
 ## 8. References
 
