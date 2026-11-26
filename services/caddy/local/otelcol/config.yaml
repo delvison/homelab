@@ -2,7 +2,7 @@ receivers:
   prometheus:
     config:
       scrape_configs:
-        - job_name: 'caddy'
+        - job_name: 'Caddy'
           static_configs:
             - targets: ['caddy:2019']
           metrics_path: /metrics
@@ -28,6 +28,11 @@ receivers:
       - type: move
         from: attributes.request.client_ip
         to: attributes["client_ip"]
+      # Reduce the path to its first segment before it becomes a metric label.
+      - type: regex_parser
+        parse_from: attributes.uri
+        regex: '^/(?P<uri_class>[^/?]*)'
+        on_error: drop
 
 processors:
   batch:
@@ -37,6 +42,18 @@ processors:
     metrics:
       metric:
         - 'IsMatch(name, "scrape_.*")'
+  # The count connector emits delta-temporality sums; Prometheus scrapes are
+  # cumulative, so accumulate them before export.
+  deltatocumulative:
+    max_stale: 5m
+    max_streams: 5000
+  # Keep uri_class bounded so scanner paths cannot create a series each.
+  transform/bucket_uri_class:
+    error_mode: ignore
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["uri_class"], "other") where attributes["uri_class"] != nil and not IsMatch(attributes["uri_class"], "^[A-Za-z0-9._-]{1,16}$")
   resource/environment:
     attributes:
       - key: environment
@@ -46,22 +63,19 @@ processors:
 connectors:
   count:
     logs:
-      caddy.http.requests:
-        description: Total HTTP requests from Caddy access logs
+      # caddy.access.requests -> caddy_access_requests_total. Caddy's own
+      # metrics endpoint already owns caddy_http_requests_total.
+      caddy.access.requests:
+        description: Total HTTP requests derived from Caddy access logs
+        # `ts` and `duration` are unique per request, and `uri`/`remote_ip`/
+        # `client_ip` are unbounded or personal. Using any of them as a label
+        # creates one resident series per request in the receiving collector.
         attributes:
           - key: server_name
             default_value: unknown
-          - key: uri
+          - key: status
             default_value: unknown
-          - key: remote_ip
-            default_value: unknown
-          - key: client_ip
-            default_value: unknown
-          - key: duration
-            default_value: unknown
-          - key: status 
-            default_value: unknown
-          - key: ts 
+          - key: uri_class
             default_value: unknown
           - key: environment
             default_value: local
@@ -75,6 +89,8 @@ exporters:
       Authorization: Bearer ${env:OTEL_AUTH_TOKEN}
     tls:
       insecure: false
+    # Avoid wedging the queue when the receiver stops answering.
+    timeout: 15s
 
 service:
   pipelines:
@@ -90,5 +106,5 @@ service:
     
     metrics/from_logs:
       receivers: [count]
-      processors: [resource/environment,batch]
+      processors: [transform/bucket_uri_class,deltatocumulative,resource/environment,batch]
       exporters: [otlphttp]
