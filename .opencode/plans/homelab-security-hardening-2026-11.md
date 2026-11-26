@@ -1,9 +1,8 @@
 # Homelab security monitoring & hardening plan (2026-11)
 
-Status: **in progress** — Phase 1.1–1.2 deployed and verified 2026-11-25; the
+Status: **in progress** — Phase 1.1–1.6 deployed and verified 2026-11-26; the
 jails' first real ban was the home WAN, now in `ignoreip` (see §0.2 and the
-logbook). Phase 1.3 is committed but not deployed to the home hosts. Next:
-deploy 1.3, then 1.5–1.7, then Phase 2.
+logbook). Next: 1.7, then Phase 2.
 Author: agent (gap analysis of repo state at `delvison/homelab`)
 Date: 2026-11-25
 Scope: public edge (`vps` Caddy), the edge→home bridge, host integrity, backup
@@ -35,9 +34,11 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-25 | 1.2 verify | Publish path proved with the real token (200), bogus token (401), read-back with the write-only token (403); ban → notification confirmed by the user | **done** — see §0.3 |
 | 2026-11-25 | 1.2 incident | The new jails banned the home WAN from 80/443 (NAT, one address). Unbanned and added it to `caddy_fail2ban_ignoreip` | **resolved** — see `Logbook/2026-11-25` 23:22 |
 | 2026-11-25 | — | `del` granted read-only on `security` (manual, not in Ansible) | **done, out-of-band** — see §0.3 |
-| — | 1.3 deploy | logwatch timer on the home hosts | **not deployed** — units absent on `server` and `proxmox` |
-| 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **code done** — `promtool` 3 rules; deploy pending |
-| — | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **code done** — ntfy integration done; needs the check, an `alerting` token on the VPS, and the two values in `services/monitoring/.env` |
+| 2026-11-25 | 1.3 deploy | logwatch timer on the home hosts | **deployed 2026-11-26** — delivery proven by 200s from all three hosts |
+| 2026-11-26 | 1.5 | `services/monitoring/prometheus/alerts/security.yml`: block burst (status 0), 5xx rate, `CaddyNoTraffic`; 429 dropped (no limiter) | **deployed** — `promtool` 3 rules on the host; 4000 `host_name="vps"` series confirm the data |
+| 2026-11-26 | 1.6 | `heartbeat` container: pings healthchecks only while the VPS edge answers | **deployed** — check and token in place, ping confirmed; the alarm leg is accepted untested |
+| 2026-11-26 | — | proxmox's `9100` was blocked by **ufw** (not pve-firewall, which is disabled); the rule now lives in `roles/node_exporter` | **code done** — run the playbook with `-K` |
+| 2026-11-26 | — | `CaddyHighUpstreamLatency` deleted: Caddy's `handler` label is `subroute` on every nested route, so the alert named nothing | **deployed** — 4 rules loaded, alert resolved |
 | — | 1.7 | security dashboard | not started |
 | — | 2–9 | see below | not started |
 
@@ -261,6 +262,7 @@ Record results in §4 before Phase 1.
 | P | Med | **No fail2ban exporter exists**, so the `fail2ban_banned_current` alert sketched in Phase 1.5 has no data source. Bans are currently invisible to Prometheus *and* to ntfy — the two gaps compound | `services/monitoring` |
 | Q | ~~Med~~ **mostly fixed** | Caddy jails come from `roles/caddy` (`jail.d/caddy.conf`) and `roles/base` writes `sshd.conf`/`tailnet.conf`. `roles/caddy` now deploys `jail.d/00-ansible-defaults.conf` with a host-wide `[DEFAULT]`, so every jail on a Caddy host inherits `ignoreip` and `bantime.increment`. A host that runs only `roles/base` still gets neither | `roles/caddy`, `roles/base` |
 | R | Low | Caddy's native metrics are the only `caddy_*` source Prometheus still reads for handler-level data, and the wildcard vhost hides the hostname — every upstream series is keyed by `handler`, not site | `Caddyfile.j2` |
+| S | ~~Med~~ **fixed** | Proxmox's node exporter was unreachable, so `NodeExporterDown` fired for real: ufw (active; only 22 allowed) blocked `9100` from `192.168.1.180`, confirmed in `/var/log/ufw.log`. pve-firewall is disabled and was never the cause. `roles/node_exporter` now allows the monitoring host and the play points at it | `roles/node_exporter`, `proxmox.yml` |
 
 ## 5. Phased plan
 
