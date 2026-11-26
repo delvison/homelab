@@ -26,3 +26,6 @@ scrape_configs:
     static_configs:
       - targets:
           - '192.168.1.2:9100'
+        labels:
+          # every other host's series carry this; proxmox is a direct scrape
+          host_name: proxmox

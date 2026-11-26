@@ -41,6 +41,7 @@ strategy, supply chain. Covers *detection* and *hardening*; not app feature work
 | 2026-11-26 | — | `CaddyHighUpstreamLatency` deleted: Caddy's `handler` label is `subroute` on every nested route, so the alert named nothing | **deployed** — 4 rules loaded, alert resolved |
 | 2026-11-26 | — | alertmanager `9093` was published on the LAN with no auth (read alerts, create silences) | **deployed** — bound to `127.0.0.1`, `d8e1959` |
 | 2026-11-26 | 1.7 | `security.json` provisioned from git: edge rate, blocks, 5xx, by status/host, URI classes, firing alerts. Top-IP panel dropped: the connector strips IPs | **done** — `8ff47b4`, verified live |
+| 2026-11-26 | 1.7 | `overview.json`, `proxmox.json`, `vps.json` + `host_name: proxmox` on the node job, all from git | **done** — every expression run through the datasource proxy; VPS panels currently render replayed data (see §7.1 item 1) |
 | — | 2–9 | see below | not started |
 
 **Deviations from the plan as written.** Read these before implementing 1.5 and
@@ -629,6 +630,34 @@ New role `roles/host-ids` on `vps` + home server:
    publisher, or fix the live config and then grant write. Never grant write
    before the probes are truthful. The live config is not in git and the repo
    copy is a stale subset that would delete checks if deployed.
+
+## 7.1 Scheduled dashboard and telemetry work (2026-11-26)
+
+Built and provisioned from git today: `overview.json` (hosts, alerts, edge
+traffic, down targets), `proxmox.json` (NVMe SMART, filesystem and subvolume
+usage, per-guest I/O) and `vps.json` (host, Caddy health, agent queue). The rest
+is scheduled here in dependency order.
+
+| # | Item | Why it matters | Blocker | Done when |
+|---|---|---|---|---|
+| 1 | **VPS agent OTLP backlog** (incident) | `otelcol_exporter_queue_size{host_name="vps"}` = 1998/2000, `enqueue_failed` = 2.9M, and the VPS node counter sat 4.5 h behind the host. Prometheus stores replayed points, so every `vps`/`edge` panel and the Phase 1.5 alerts act on delayed data | Needs root on the VPS (`npc` has password sudo, no NOPASSWD). Endpoint reachability still unknown | queue < 100 for 1 h, values match the host, no new drops; then re-check the security numbers |
+| 2 | **blackbox_exporter** + probes + TLS expiry alert | A failed cert renewal is silent today; the existing "Blackbox Exporter (HTTP prober)" dashboard is empty because no `probe_*` series exist | none — container, scrape job, one rule | `probe_success` and `probe_ssl_earliest_cert_expiry` series; alert below 14 d; the prober dashboard has data |
+| 3 | **fail2ban exporter** + bans dashboard | Open question 7. Bans notify via ntfy, but there is no history or per-jail view | exporter choice | `fail2ban_banned_current` series; bans/hour, top IPs, jail table |
+| 4 | **LND exporter** | `up{exported_job="lnd-prometheus-exporter"} == 0` on `server`: Bitcoin and prod-lnd-01 show stale values and nothing alerts | decide fix vs retire | either `up == 1` or target and dashboards removed; an alert either way |
+| 5 | **proxmox CPU temperature** | `cpu_temperature_celsius` has no series, so both temperature alerts are dead config | script/hwmon path on proxmox | the series exists and both alerts evaluate |
+| 6 | **ssh_* producer** | `ssh_failed_logins_total` has no samples in 24 h and its producer is not in the repo | find the producer | live series plus an SSH panel, or the series are gone |
+| 7 | **`up` pollution** | Agent-exported `up` series share `instance="otel-collector:8889"`; new dashboards filter it, but a new query can still lie | none | recording rule or documented filter |
+
+Parked decisions stay parked: `8006` (question 8) and gatus (question 9).
+
+```mermaid
+flowchart LR
+  A[1. VPS agent queue] --> B[fresh edge and VPS panels]
+  C[2. blackbox probes] --> D[TLS expiry alert plus prober dashboard]
+  E[3. fail2ban exporter] --> F[bans dashboard]
+  G[4. LND up] --> H[Bitcoin dashboards trustworthy]
+  I[5. CPU temp script] --> J[two dead alerts live]
+```
 
 ## 8. References
 
