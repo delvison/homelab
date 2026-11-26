@@ -1,0 +1,9 @@
+{
+  // Table rows cannot be wrapped and command lines in fenced blocks often
+  // cannot either. Prose is still held to 80 columns.
+  "MD013": { "line_length": 80, "tables": false, "code_blocks": false },
+  // MD060 infers one table style per table and rejects the `|---|` form used
+  // throughout the repo, so it cannot be satisfied without realigning every
+  // existing table.
+  "MD060": false
+}
