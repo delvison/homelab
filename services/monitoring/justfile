@@ -7,15 +7,64 @@ set-context:
   @docker context use monitoring
 
 push-files:
-  @scp -r ./otelcol {{deploy_host}}:$BASE_DIR/
-  @scp -r ./prometheus {{deploy_host}}:$BASE_DIR/
-  @scp -r ./grafana {{deploy_host}}:$BASE_DIR/
-  @scp -r ./alertmanager/ {{deploy_host}}:$BASE_DIR/
+  @find . -maxdepth 1 -type d -not -name . | while read dir; do scp -r "$dir" {{deploy_host}}:$BASE_DIR; done
 
 save-secrets:
   sops -e .env > .env.enc
 
-deploy: set-context push-files
+# Render prometheus/web.yml with htpasswd from nixpkgs and write it to the
+# monitoring host. That host has no egress, so it cannot hash the password
+# itself. The hash goes to a temporary file and is streamed over stdin, so it
+# never lands in a tracked file and never reaches stdout.
+write-web-config:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  : "${PROMETHEUS_ADMIN_PASSWORD:?PROMETHEUS_ADMIN_PASSWORD must be set}"
+  : "${BASE_DIR:?BASE_DIR must be set}"
+
+  # `nix build` prints every output, including -man, so pick the real one.
+  htpasswd="$(nix build --no-link --print-out-paths nixpkgs#apacheHttpd \
+    | grep -v -- '-man$' | tail -1)/bin/htpasswd"
+  if [ ! -x "$htpasswd" ]; then
+    echo "ERROR: htpasswd not found at $htpasswd" >&2
+    exit 1
+  fi
+
+  umask 077
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' EXIT
+
+  hash_of() {
+    printf '%s' "$2" | "$htpasswd" -niBC 10 "$1" | cut -d: -f2 | tr -d '\n' | sed 's/^\$2y/$2a/'
+  }
+
+  {
+    echo 'basic_auth_users:'
+    echo "  admin: $(hash_of admin "$PROMETHEUS_ADMIN_PASSWORD")"
+    if [ -n "${PROMETHEUS_BOT_PASSWORD:-}" ]; then
+      echo "  bot: $(hash_of bot "$PROMETHEUS_BOT_PASSWORD")"
+    fi
+    echo 'http_server_config:'
+    echo '  http2: true'
+  } > "$tmp"
+
+  # Never publish a hash Prometheus will reject.
+  grep -qE '^  admin: \$2[aby]\$' "$tmp" || {
+    echo "ERROR: rendered web.yml has no valid bcrypt hash for admin" >&2
+    exit 1
+  }
+
+  docker --context monitoring run --rm -i \
+    -v "$BASE_DIR/prometheus:/etc/prometheus" \
+    alpine:3.19 sh -c 'cat > /etc/prometheus/web.yml' < "$tmp"
+  echo "wrote web.yml to $BASE_DIR/prometheus on the monitoring host"
+
+sync-web-config: write-web-config
+  docker --context monitoring restart prometheus
+  sleep 5
+  docker --context monitoring ps --filter name=prometheus
+
+deploy: set-context push-files write-web-config
   docker compose pull
   BASE_DIR=$BASE_DIR docker compose up -d --force-recreate
   docker compose ps

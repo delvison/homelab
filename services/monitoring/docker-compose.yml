@@ -182,7 +182,11 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   prometheus-init:
-    image: alpine:3.19
+    # httpd ships `htpasswd`, and this image is already on the monitoring host.
+    # It has no egress, so `alpine` + `apk add apache2-utils` can never work
+    # there. Pinned by digest upstream would be better; kept as-is to match the
+    # image the host already holds.
+    image: httpd:2-alpine
     container_name: prometheus-init
     volumes:
       - ${BASE_DIR:-.}/prometheus:/etc/prometheus:rw
@@ -194,20 +198,62 @@ services:
       - sh
       - -c
       - |
-        apk add --no-cache apache2-utils > /dev/null 2>&1
-        HASH=$$(echo "$$PROMETHEUS_ADMIN_PASSWORD" | htpasswd -niBC 10 admin | cut -d: -f2 | tr -d '\n' | sed 's/\$$2y/\$$2a/')
-        cat > /etc/prometheus/web.yml << EOF
-        basic_auth_users:
-          admin: $$HASH
-        EOF
-        if [ -n "$$PROMETHEUS_BOT_PASSWORD" ]; then
-          BHASH=$$(echo "$$PROMETHEUS_BOT_PASSWORD" | htpasswd -niBC 10 bot | cut -d: -f2 | tr -d '\n' | sed 's/\$$2y/\$$2a/')
-          echo "  bot: $$BHASH" >> /etc/prometheus/web.yml
+        # This host has no egress, so `apk add` can fail. Writing a web.yml with
+        # an empty hash makes Prometheus crash-loop with
+        # "hashedSecret too short to be a bcrypted password", so every failure
+        # path below is explicit: keep a good file, or stop loudly.
+        set -eu
+        WEB=/etc/prometheus/web.yml
+
+        if [ -z "$${PROMETHEUS_ADMIN_PASSWORD:-}" ]; then
+          echo "ERROR: PROMETHEUS_ADMIN_PASSWORD is empty; refusing to generate web.yml" >&2
+          exit 1
         fi
-        cat >> /etc/prometheus/web.yml << EOF
+
+        if ! command -v htpasswd >/dev/null 2>&1; then
+          apk add --no-cache apache2-utils >/dev/null 2>&1 || true
+        fi
+
+        if ! command -v htpasswd >/dev/null 2>&1; then
+          if [ -s "$$WEB" ] && grep -qE '^[[:space:]]+admin:[[:space:]]+\$$2[aby]\$$' "$$WEB"; then
+            echo "htpasswd unavailable; keeping existing $$WEB unchanged" >&2
+            exit 0
+          fi
+          echo "ERROR: htpasswd unavailable and $$WEB has no usable admin hash." >&2
+          echo "       Run 'just sync-web-config' in services/monitoring first." >&2
+          exit 1
+        fi
+
+        HASH=$$(printf '%s' "$$PROMETHEUS_ADMIN_PASSWORD" | htpasswd -niBC 10 admin | cut -d: -f2 | tr -d '\n' | sed 's/^\$$2y/\$$2a/')
+        if ! printf '%s' "$$HASH" | grep -qE '^\$$2[aby]\$$'; then
+          echo "ERROR: refusing to write an invalid bcrypt hash (is PROMETHEUS_ADMIN_PASSWORD empty?)" >&2
+          exit 1
+        fi
+
+        # Render next to the real file and move into place, so a failure can
+        # never leave a truncated web.yml behind.
+        TMP="$$WEB.tmp"
+        {
+          echo 'basic_auth_users:'
+          echo "  admin: $$HASH"
+        } > "$$TMP"
+
+        if [ -n "$${PROMETHEUS_BOT_PASSWORD:-}" ]; then
+          BHASH=$$(printf '%s' "$$PROMETHEUS_BOT_PASSWORD" | htpasswd -niBC 10 bot | cut -d: -f2 | tr -d '\n' | sed 's/^\$$2y/\$$2a/')
+          if ! printf '%s' "$$BHASH" | grep -qE '^\$$2[aby]\$$'; then
+            echo "ERROR: refusing to write an invalid bcrypt hash for bot" >&2
+            rm -f "$$TMP"
+            exit 1
+          fi
+          echo "  bot: $$BHASH" >> "$$TMP"
+        fi
+
+        cat >> "$$TMP" << 'EOF'
         http_server_config:
           http2: true
         EOF
+
+        mv "$$TMP" "$$WEB"
         echo "Generated web.yml successfully"
     restart: "no"
 
@@ -216,6 +262,8 @@ services:
     container_name: prometheus
     ports:
       - "9090:9090"
+    environment:
+      - PROMETHEUS_ADMIN_PASSWORD=${PROMETHEUS_ADMIN_PASSWORD}
     volumes:
       - ${BASE_DIR:-.}/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -239,7 +287,7 @@ services:
       prometheus-init:
         condition: service_completed_successfully
     healthcheck:
-      test: "wget --no-check-certificate -qO- http://localhost:9090/-/healthy || exit 1"
+      test: "wget --no-check-certificate -qO- http://admin:${PROMETHEUS_ADMIN_PASSWORD}@localhost:9090/-/healthy || exit 1"
       interval: 30s
       timeout: 10s
       start_period: 60s
