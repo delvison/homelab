@@ -5,8 +5,9 @@ YubiKey/passphrase and `just run-caddy` asks for the sudo password, so the
 deploy is a manual step (see below). Nothing here has been applied to the VPS.
 
 Scope: the public host only (`vps`, ansible user `npc`, SSH on **2245**). The
-LAN hosts are out of scope: a default-deny firewall there would cut Grafana
-`:3000`, Prometheus `:9090`, node exporters and the rest.
+SSH port is **not changed**: ufw allows 2245 and 22. The LAN hosts are out of
+scope: a default-deny firewall there would cut Grafana `:3000`, Prometheus
+`:9090`, node exporters and the rest.
 
 ## What was true before this phase
 
@@ -37,8 +38,10 @@ LAN hosts are out of scope: a default-deny firewall there would cut Grafana
 
 The ufw rule reads the live SSH port from `sshd -T` instead of the distro
 default; a name-based `OpenSSH` rule allows 22 and would cut the session. The
-`caddy_ssh_port` default (22) is unioned in for the socket-activation case,
-where `sshd -T` reports the default while the socket listens elsewhere.
+`caddy_ssh_port` default (22) is unioned in, so both 22 and the live port (2245
+today) stay open. Nothing in the role writes a `Port` line; the port is
+unchanged. The variable is the fallback for the socket-activation case, where
+`sshd -T` reports the default while the socket listens elsewhere.
 
 ## Deploy
 
