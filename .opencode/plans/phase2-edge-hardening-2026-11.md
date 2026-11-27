@@ -55,6 +55,16 @@ sshd handler runs `sshd -t` before `systemctl reload ssh`, and a later task
 asserts the effective `sshd -T` values, so a missing `Include` cannot silently
 leave password auth on.
 
+The home Caddy publish is a separate stack:
+
+```sh
+cd services/caddy/local && just deploy
+```
+
+`--force-recreate` restarts pihole and the collector too, so DNS and proxying
+blip for a few seconds. After it is up, `local-caddy.md` in the vault needs its
+port table and admin note updated.
+
 Before running: confirm a second key login works, and keep the provider web
 console open. If ufw locks SSH, the console is the way back in
 (`ufw allow 2245/tcp`).
