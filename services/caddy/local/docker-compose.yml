@@ -12,7 +12,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "2019:2019"
+      # The admin API stays on the compose network (caddy:2019) for the
+      # otelcol sidecar. Publishing it to the LAN would expose an
+      # unauthenticated admin endpoint.
     volumes:
       - caddy_data:/data
       - caddy_config:/config

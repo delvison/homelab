@@ -7,3 +7,7 @@ caddy_version: "2.11.9"
 # repository: set this from the vault (e.g. the home WAN address) instead.
 caddy_fail2ban_ignoreip: ""
 
+# Extra port to allow through the edge firewall. `sshd -T` gives the real one;
+# this covers socket activation, where that reports the default 22.
+caddy_ssh_port: 22
+

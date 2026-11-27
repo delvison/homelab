@@ -1,0 +1,8 @@
+# Managed by Ansible (roles/caddy). The edge is reachable from the internet.
+# The play asserts the effective values with `sshd -T`, so a missing Include in
+# sshd_config fails the play instead of leaving password auth silently on.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+MaxAuthTries 3
+X11Forwarding no

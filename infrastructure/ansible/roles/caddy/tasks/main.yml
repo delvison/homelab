@@ -49,14 +49,17 @@
     group: caddy
     mode: 0755
 
-- name: Download Caddy server binary with cloudflare module
+- name: Download Caddy server binary with cloudflare and ratelimit modules
   get_url:
-    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare&version={{ caddy_version }}"
+    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com%2Fcaddy-dns%2Fcloudflare&p=github.com%2Fmholt%2Fcaddy-ratelimit&version={{ caddy_version }}"
     dest: "/tmp/caddy_{{ caddy_version }}_cloudflare"
+    # The plugin set is encoded in the URL, not the file name. A cached copy
+    # from before a plugin was added would install a binary that lacks it.
+    force: yes
     mode: '0755'
   become: yes
 
-- name: Install Caddy binary with cloudflare module
+- name: Install Caddy binary with cloudflare and ratelimit modules
   copy:
     src: "/tmp/caddy_{{ caddy_version }}_cloudflare"
     dest: /usr/bin/caddy
@@ -186,3 +189,93 @@
     name: fail2ban
     state: started
     enabled: yes
+
+# --- Edge firewall -------------------------------------------------------
+# Only this role runs on the public host, so the default-deny policy lives
+# here rather than in roles/base: applying it to the LAN hosts would cut
+# Grafana, Prometheus and the node exporters.
+- name: Install ufw
+  apt:
+    name: ufw
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
+# The SSH port must be allowed before the default-deny policy lands; reading
+# it from sshd beats trusting a hand-kept variable, and the variable covers a
+# socket-activated listener that sshd -T would report as the default 22.
+- name: Read the SSH ports sshd will listen on
+  command: sshd -T
+  register: sshd_effective_config
+  changed_when: false
+
+- name: Allow SSH on every configured port
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: >-
+    {{ (sshd_effective_config.stdout_lines
+        | select('match', '^port ')
+        | map('regex_replace', '^port\s+', '')
+        | list + [caddy_ssh_port | string])
+       | unique }}
+
+- name: Allow HTTP and HTTPS
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: "80", proto: tcp }
+    - { port: "443", proto: tcp }
+    # HTTP/3 is QUIC over UDP; without this browsers fall back to TCP.
+    - { port: "443", proto: udp }
+
+- name: Default deny incoming, allow outgoing
+  ufw:
+    policy: "{{ item.policy }}"
+    direction: "{{ item.direction }}"
+  loop:
+    - { policy: deny, direction: incoming }
+    - { policy: allow, direction: outgoing }
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+
+# --- SSH hardening -------------------------------------------------------
+- name: Create the sshd drop-in directory
+  file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Harden sshd
+  template:
+    src: templates/sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload sshd
+
+# A drop-in that sshd never reads looks identical to one that works. Read the
+# effective config back and fail the play if it did not take.
+- name: Read the effective sshd settings
+  shell: sshd -T | grep -E '^(passwordauthentication|permitrootlogin|kbdinteractiveauthentication|maxauthtries|x11forwarding) '
+  register: sshd_effective
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Fail when the sshd drop-in is not in effect
+  assert:
+    that:
+      - "'passwordauthentication no' in sshd_effective.stdout"
+      - "'permitrootlogin no' in sshd_effective.stdout"
+      - "'kbdinteractiveauthentication no' in sshd_effective.stdout"
+      - "'maxauthtries 3' in sshd_effective.stdout"
+      - "'x11forwarding no' in sshd_effective.stdout"
+    fail_msg: "sshd_config.d is not included; the hardening drop-in has no effect"
+  when: not ansible_check_mode

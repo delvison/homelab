@@ -22,7 +22,12 @@
 
 [Definition]
 
-failregex = ^.*"remote_ip":"<HOST>".*"status":(?:400|403|404|429)\b.*$
+# `client_ip` first: when trusted_proxies is set it is the real client, while
+# `remote_ip` is the proxy. fail2ban uses the first failregex that matches, so
+# this order bans the client, not the forwarder.
+failregex = ^.*"client_ip":"<HOST>".*"status":(?:400|403|404|429)\b.*$
+            ^.*"remote_ip":"<HOST>".*"status":(?:400|403|404|429)\b.*$
+            ^.*"status":(?:400|403|404|429)\b.*"client_ip":"<HOST>".*$
             ^.*"status":(?:400|403|404|429)\b.*"remote_ip":"<HOST>".*$
 
 # Legitimate traffic. These are whole-line matches, so they also stop a request
