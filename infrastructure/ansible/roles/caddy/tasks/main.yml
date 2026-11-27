@@ -259,7 +259,6 @@
     owner: root
     group: root
     mode: '0644'
-  notify: Reload sshd
 
 # A drop-in that sshd never reads looks identical to one that works. Read the
 # effective config back and fail the play if it did not take.
@@ -278,4 +277,14 @@
       - "'maxauthtries 3' in sshd_effective.stdout"
       - "'x11forwarding no' in sshd_effective.stdout"
     fail_msg: "sshd_config.d is not included; the hardening drop-in has no effect"
+  when: not ansible_check_mode
+
+# Always run: a rerun after fixing a missing Include changes no template, so a
+# notify would never fire and the live daemon would stay unhardened.
+- name: Validate and apply the sshd config
+  shell: |
+    set -e
+    sshd -t
+    systemctl reload ssh
+  changed_when: false
   when: not ansible_check_mode

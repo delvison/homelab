@@ -29,7 +29,7 @@ LAN hosts are out of scope: a default-deny firewall there would cut Grafana
 | # | Item | File | State |
 |---|---|---|---|
 | 2.1 | ufw: allow every port `sshd -T` reports, 80/443 tcp, 443 udp (HTTP/3), default deny incoming, allow outgoing, enable | `roles/caddy/tasks/main.yml` | written |
-| 2.2 | sshd: keys only, no root login, no keyboard-interactive, `MaxAuthTries 3`, no X11; `sshd -T` asserts the result before reload | `roles/caddy/templates/sshd-hardening.conf.j2` + tasks + handler | written |
+| 2.2 | sshd: keys only, no root login, no keyboard-interactive, `MaxAuthTries 3`, no X11; `sshd -T` asserts the result, then `sshd -t` + reload | `roles/caddy/templates/sshd-hardening.conf.j2` + tasks | written |
 | 2.3 | fail2ban: match `client_ip` before `remote_ip` in both filters (first match wins); verified with `fail2ban-regex -o ip` | `caddy-filter.conf.j2`, `caddy-envscan-filter.conf.j2` | written |
 | 2.4 | `caddy-ratelimit` added to the custom binary; login paths limited to 20 events/60 s per client+host+path. Syntax validated against a real v2.11.9 binary with both plugins | `roles/caddy/tasks/main.yml`, `Caddyfile.j2` | written |
 | 2.5 | Attack-path matchers reviewed against real app routes | — | **not done** — needs the app list; see below |
@@ -50,10 +50,10 @@ just run-caddy
 ```
 
 The Caddy handler already runs `caddy validate` before `systemctl restart`, so
-a bad Caddyfile aborts the restart and leaves the old process serving. The
-sshd handler runs `sshd -t` before `systemctl reload ssh`, and a later task
-asserts the effective `sshd -T` values, so a missing `Include` cannot silently
-leave password auth on.
+a bad Caddyfile aborts the restart and leaves the old process serving. The sshd
+task runs `sshd -T` and asserts the effective values, then `sshd -t` before
+`systemctl reload ssh` — and it runs every time, so fixing a missing `Include`
+and re-running actually applies the drop-in.
 
 The home Caddy publish is a separate stack:
 

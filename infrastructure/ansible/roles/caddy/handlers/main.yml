@@ -8,15 +8,6 @@
     caddy validate --config /etc/caddy/Caddyfile
     systemctl restart caddy
 
-# Validate first: a drop-in with a typo would otherwise leave sshd unable to
-# reload, and the next reboot would lock the host out.
-- name: Reload sshd
-  become: yes
-  shell: |
-    set -e
-    sshd -t
-    systemctl reload ssh
-
 - name: Restart fail2ban
   become: yes
   systemd:
